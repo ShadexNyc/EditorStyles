@@ -74,6 +74,7 @@ html, body {
 }
 
 .app-main {
+  position: relative;
   flex: 1;
   overflow: auto;
   display: flex;
@@ -94,9 +95,12 @@ html, body {
 }
 
 .review-comments-sidebar {
-  flex: 0 0 280px;
-  min-width: 0;
-  max-height: 100%;
+  position: absolute;
+  top: 120px;
+  left: calc(50% + 397px + 12px);
+  right: auto;
+  width: 280px;
+  max-height: calc(100% - 48px);
   overflow-y: auto;
   background: var(--color-bg-page);
 }
@@ -123,14 +127,13 @@ html, body {
 
 .review-comments-bubble {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--color-border-canvas);
   border-radius: 8px;
   background: #fff;
-  cursor: pointer;
   text-align: left;
   font-family: var(--font-family);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -144,6 +147,24 @@ html, body {
 .review-comments-bubble.is-open {
   border-color: var(--color-accent);
   box-shadow: 0 2px 8px rgba(91, 163, 208, 0.2);
+}
+
+.review-comments-bubble-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.review-comments-bubble-header:focus-visible {
+  outline: 2px solid var(--color-accent);
+  border-radius: 6px;
 }
 
 .review-comments-avatar {
@@ -183,13 +204,25 @@ html, body {
   color: #000;
 }
 
+.review-comments-action-line-first {
+  margin-bottom: 8px;
+}
+
+.review-comments-action-line-second {
+  color: #000;
+}
+
 .review-comments-card {
-  padding: 0 12px 12px 44px;
+  padding: 0 0 12px 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .review-comments-input {
   width: 100%;
+  box-sizing: border-box;
   padding: 8px 10px;
+  margin-top: 8px;
   border: 1px solid var(--color-border-canvas);
   border-radius: 6px;
   font-family: var(--font-family);

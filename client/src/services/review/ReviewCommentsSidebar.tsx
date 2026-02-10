@@ -12,13 +12,17 @@ function renderAction(deletionText: string, insertionText: string) {
   if (hasDel && hasIns) {
     return (
       <>
-        <span className="review-comments-action-label">Заменить:</span> [{deletionText}]{' '}
-        <span className="review-comments-action-label">на</span> [{insertionText}]
+        <div className="review-comments-action-line review-comments-action-line-first">
+          <span className="review-comments-action-label">Заменить:</span> {deletionText}
+        </div>
+        <div className="review-comments-action-line review-comments-action-line-second">
+          <span className="review-comments-action-label">на</span> {insertionText}
+        </div>
       </>
     )
   }
-  if (hasDel) return `Удалить: [${deletionText}]`
-  if (hasIns) return `Добавить: [${insertionText}]`
+  if (hasDel) return `Удалить: ${deletionText}`
+  if (hasIns) return `Добавить: ${insertionText}`
   return 'Правка'
 }
 
@@ -45,9 +49,7 @@ export function ReviewCommentsSidebar() {
   return (
     <aside className="review-comments-sidebar">
       <div className="review-comments-sidebar-inner">
-        {suggestions.length === 0 ? (
-          <p className="review-comments-empty">Нет рецензий</p>
-        ) : (
+        {suggestions.length > 0 &&
           suggestions.map((s) => {
             const authorName = s.authorId
               ? users.find((u) => u.id === s.authorId)?.name ?? 'Автор'
@@ -55,40 +57,41 @@ export function ReviewCommentsSidebar() {
             const isOpen = openedSuggestionId === s.id
             return (
               <div key={s.id} className="review-comments-bubble-wrap">
-                <button
-                  type="button"
-                  className={`review-comments-bubble ${isOpen ? 'is-open' : ''}`}
-                  onClick={() => openBubble(s.id)}
-                  aria-expanded={isOpen}
-                >
-                  <div
-                    className="review-comments-avatar"
-                    style={{ background: s.authorColor }}
-                    aria-hidden
+                <div className={`review-comments-bubble ${isOpen ? 'is-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="review-comments-bubble-header"
+                    onClick={() => openBubble(s.id)}
+                    aria-expanded={isOpen}
                   >
-                    {getInitials(authorName)}
-                  </div>
-                  <div className="review-comments-bubble-content">
-                    <div className="review-comments-author">{authorName}</div>
-                    <div className="review-comments-action">
-                      {renderAction(s.deletionText, s.insertionText)}
+                    <div
+                      className="review-comments-avatar"
+                      style={{ background: s.authorColor }}
+                      aria-hidden
+                    >
+                      {getInitials(authorName)}
                     </div>
-                  </div>
-                </button>
-                {isOpen && (
-                  <div className="review-comments-card">
-                    <input
-                      type="text"
-                      className="review-comments-input"
-                      placeholder="оставить комментарий"
-                      aria-label="Комментарий к рецензии"
-                    />
-                  </div>
-                )}
+                    <div className="review-comments-bubble-content">
+                      <div className="review-comments-author">{authorName}</div>
+                      <div className="review-comments-action">
+                        {renderAction(s.deletionText, s.insertionText)}
+                      </div>
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="review-comments-card">
+                      <input
+                        type="text"
+                        className="review-comments-input"
+                        placeholder="оставить комментарий"
+                        aria-label="Комментарий к рецензии"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )
-          })
-        )}
+          })}
       </div>
     </aside>
   )
