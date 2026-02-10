@@ -117,7 +117,7 @@ function Leaf({
   const showInsertionStyle = isInsertionNode && !isEditingThisSuggestion
   const isStyle5Or6 = reviewStyleId === 'style-5' || reviewStyleId === 'style-6'
   if (isStyle5Or6) {
-    /* Стиль 5/6: цвет пользователя, подчёркивание (только не в режиме редактирования); при редактировании — фон 20% в цвет пользователя, зачёркнутый текст чёрный */
+    /* Стиль 5/6: зачёркнутый текст (deletion) всегда с красным фоном; вставка — цвет пользователя */
     if ((isDeletion || isInsertionNode) && text.authorColor) {
       style.display = 'inline'
       style.marginRight = '2px'
@@ -129,7 +129,6 @@ function Leaf({
           if (isDeletion) style.color = 'var(--review-strikethrough-color)'
         } else {
           if (isDeletion) {
-            style.backgroundColor = 'rgba(255, 0, 0, 0.1)'
             style.color = '#000'
           } else {
             style.backgroundColor = authorColorToRgba(text.authorColor, 0.2) ?? text.authorColor
@@ -141,6 +140,7 @@ function Leaf({
       style.textDecoration = (style.textDecoration || '') ? `${style.textDecoration} line-through` : 'line-through'
       style.textDecorationColor = 'var(--review-strikethrough-color)'
       style.textDecorationThickness = '2px'
+      style.backgroundColor = 'rgba(255, 0, 0, 0.1)'
     }
   } else {
     if (isDeletion) {
@@ -685,7 +685,9 @@ export function SlateEditorBody() {
   const editor = useSlate()
   const editingSuggestionId = useEditingSuggestionId()
   const { currentReviewStyleId, reviewMode } = useReview()
-  const { fromSidebar, setFromSidebar, openedSuggestionId } = useContext(ReviewCommentsContext)
+  const { fromSidebar, setFromSidebar, openedSuggestionId, acceptHoverSuggestionId } = useContext(
+    ReviewCommentsContext
+  )
   const wrapRef = useRef<HTMLDivElement>(null)
   const [acceptHover, setAcceptHover] = useState(false)
   const [isToolbarHovered, setIsToolbarHovered] = useState(false)
@@ -722,6 +724,9 @@ export function SlateEditorBody() {
       ? openedSuggestionId
       : effectiveEditingSuggestionId ?? lastStickySuggestionIdRef.current
 
+  const isAcceptHighlight = acceptHover || acceptHoverSuggestionId != null
+  const acceptHighlightId = acceptHoverSuggestionId ?? overlayEditingId
+
   useEffect(() => {
     if (editingSuggestionId === null) {
       if (prevEditingSuggestionIdRef.current != null) {
@@ -749,12 +754,18 @@ export function SlateEditorBody() {
         {...props}
         editingSuggestionId={editingSuggestionId}
         sidebarEditingSuggestionId={sidebarEditingSuggestionId}
-        acceptHighlightSuggestionId={overlayEditingId}
+        acceptHighlightSuggestionId={acceptHighlightId}
         reviewStyleId={currentReviewStyleId}
-        acceptHover={acceptHover}
+        acceptHover={isAcceptHighlight}
       />
     ),
-    [editingSuggestionId, sidebarEditingSuggestionId, overlayEditingId, currentReviewStyleId, acceptHover]
+    [
+      editingSuggestionId,
+      sidebarEditingSuggestionId,
+      acceptHighlightId,
+      currentReviewStyleId,
+      isAcceptHighlight,
+    ]
   )
 
   const handleAccept = useCallback(() => {

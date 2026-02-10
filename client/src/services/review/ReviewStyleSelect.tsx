@@ -1,27 +1,59 @@
+import { useState } from 'react'
 import { useReview } from './ReviewContext'
+
+const ribbonBtn = {
+  padding: '6px 10px',
+  border: 'none',
+  borderRadius: 12,
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontFamily: 'var(--font-family)',
+  minWidth: 80,
+}
 
 export function ReviewStyleSelect() {
   const { reviewHighlightStyles, currentReviewStyleId, setCurrentReviewStyleId } = useReview()
+  const [open, setOpen] = useState(false)
+  const currentName = reviewHighlightStyles.find((s) => s.id === currentReviewStyleId)?.name ?? currentReviewStyleId
+
   return (
-    <select
-      value={currentReviewStyleId}
-      onChange={(e) => setCurrentReviewStyleId(e.target.value)}
-      title="Подсветка рецензий"
-      style={{
-        padding: '4px 8px',
-        border: 'none',
-        borderRadius: 12,
-        background: 'transparent',
-        fontSize: 12,
-        fontFamily: 'var(--font-family)',
-        cursor: 'pointer',
-      }}
-    >
-      {reviewHighlightStyles.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.name}
-        </option>
-      ))}
-    </select>
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        style={ribbonBtn}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        title="Подсветка рецензий"
+      >
+        {currentName}
+      </button>
+      {open && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 1 }}
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <ul className="ribbon-dropdown" style={{ minWidth: 120 }}>
+            {reviewHighlightStyles.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={`ribbon-dropdown-item ${currentReviewStyleId === s.id ? 'is-active' : ''}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setCurrentReviewStyleId(s.id)
+                    setOpen(false)
+                  }}
+                >
+                  {s.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   )
 }

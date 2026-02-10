@@ -2,26 +2,10 @@ import type { MutableRefObject } from 'react'
 import type { Editor } from 'slate'
 import { Editor as SlateEditor, Range, Transforms } from 'slate'
 import { Text } from 'slate'
-import type { FormattedText } from '../types/slate'
 import type { ReviewPluginRef } from '../services/review/ReviewContext'
 
 function generateSuggestionId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-}
-
-function selectionOverlapsExistingSuggestion(editor: Editor, selection: Range): boolean {
-  for (const [node, path] of SlateEditor.nodes(editor, {
-    at: [],
-    match: (n) => Text.isText(n) && !!(n as FormattedText).suggestionId,
-  })) {
-    const textNode = node as FormattedText
-    const otherRange: Range = {
-      anchor: { path, offset: 0 },
-      focus: { path, offset: textNode.text.length },
-    }
-    if (Range.intersection(selection, otherRange)) return true
-  }
-  return false
 }
 
 export function withReview<T extends Editor>(
@@ -42,10 +26,8 @@ export function withReview<T extends Editor>(
       insertText(text)
       return
     }
-    if (selectionOverlapsExistingSuggestion(editor, selection)) {
-      insertText(text)
-      return
-    }
+    // Выделение внутри уже созданной рецензии и ввод текста создаёт новую рецензию
+    // (setNodes с split: true разбивает узлы — выделенная часть получает новый suggestionId)
     const userId = ref.getCurrentUserId()
     const userColor = userId ? ref.getUserColor(userId) : undefined
     const suggestionId = generateSuggestionId()

@@ -126,6 +126,7 @@ html, body {
 }
 
 .review-comments-bubble {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -149,17 +150,49 @@ html, body {
   box-shadow: 0 2px 8px rgba(91, 163, 208, 0.2);
 }
 
+.review-comments-bubble-header-row {
+  padding-right: 56px;
+  min-width: 0;
+}
+
 .review-comments-bubble-header {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   width: 100%;
+  min-width: 0;
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
+}
+
+.review-comments-bubble-actions {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-comments-bubble-actions .review-comments-toolbar-btn {
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-comments-bubble-actions .review-comments-toolbar-btn:hover {
+  background: #F2F2F2;
+  color: #000;
 }
 
 .review-comments-bubble-header:focus-visible {
@@ -278,7 +311,7 @@ html, body {
 
 .ribbon button:hover,
 .ribbon select:hover {
-  background: #D1DEE9 !important;
+  background: #e8e8e8 !important;
 }
 
 .ribbon input[type="color"] {
@@ -288,6 +321,40 @@ html, body {
   min-width: 20px !important;
   min-height: 20px !important;
   padding: 0 !important;
+}
+
+/* Единый стиль выпадающих списков риббона */
+.ribbon-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.ribbon-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-family);
+  text-align: left;
+  color: var(--color-text);
+}
+
+.ribbon-dropdown-item:hover,
+.ribbon-dropdown-item.is-active {
+  background: #e8e8e8;
 }
 
 .slate-editor-wrap {
@@ -315,6 +382,11 @@ html, body {
 /* Когда вышли из редактирования — цвет зачёркнутого текста чёрный */
 .review-deletion:not(.review-deletion-editing) {
   color: #000 !important;
+}
+
+/* Зачёркнутый текст (удаление) всегда с красным фоном, в т.ч. у вложенной рецензии — !important перебивает любые инлайны */
+.review-deletion {
+  background-color: rgba(255, 0, 0, 0.1) !important;
 }
 
 [data-review-style="style-1"] .review-deletion,

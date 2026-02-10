@@ -13,6 +13,8 @@ const ribbonBtn = {
   minWidth: 80,
 }
 
+const dropdownStyle = { minWidth: 140 }
+
 const labels: Record<string, string> = {
   paragraph: 'Обычный',
   h1: 'Заголовок 1',
@@ -47,33 +49,12 @@ export function HeadingsDropdown() {
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <ul
-            style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              margin: 0,
-              padding: 4,
-              listStyle: 'none',
-              background: 'var(--color-bg-canvas)',
-              border: '1px solid var(--color-border-canvas)',
-              borderRadius: 12,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              zIndex: 2,
-              minWidth: 140,
-            }}
-          >
+          <ul className="ribbon-dropdown" style={dropdownStyle}>
             {blockTypes.map((type) => (
               <li key={type}>
                 <button
                   type="button"
-                  style={{
-                    ...ribbonBtn,
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    background: current === type ? 'var(--color-ribbon-bg)' : undefined,
-                  }}
+                  className={`ribbon-dropdown-item ${current === type ? 'is-active' : ''}`}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     setBlockType(type)

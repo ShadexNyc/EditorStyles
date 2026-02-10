@@ -13,6 +13,8 @@ const ribbonBtn = {
   minWidth: 48,
 }
 
+const dropdownStyle = { minWidth: 70 }
+
 export function FontSizeDropdown() {
   const editor = useSlate()
   const { setSize, currentSize, sizes } = useFontSize(editor)
@@ -32,33 +34,12 @@ export function FontSizeDropdown() {
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 1 }} onClick={() => setOpen(false)} aria-hidden />
-          <ul
-            style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              margin: 0,
-              padding: 4,
-              listStyle: 'none',
-              background: 'var(--color-bg-canvas)',
-              border: '1px solid var(--color-border-canvas)',
-              borderRadius: 12,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              zIndex: 2,
-              minWidth: 70,
-            }}
-          >
+          <ul className="ribbon-dropdown" style={dropdownStyle}>
             {sizes.map((size) => (
               <li key={size}>
                 <button
                   type="button"
-                  style={{
-                    ...ribbonBtn,
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    background: currentSize === size ? 'var(--color-ribbon-bg)' : undefined,
-                  }}
+                  className={`ribbon-dropdown-item ${currentSize === size ? 'is-active' : ''}`}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     setSize(size)

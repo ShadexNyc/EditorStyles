@@ -89,6 +89,26 @@ export function useDocumentStorage(initialContent: Descendant[]) {
     save(contentRef.current, newUser.id, nextUsers)
   }, [save])
 
+  const resetDocument = useCallback(
+    (initial: Descendant[]) => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      const docUsers = DEFAULT_USERS
+      const firstUserId = docUsers[0]?.id
+      initialRef.current = initial
+      contentRef.current = initial
+      usersRef.current = docUsers
+      currentUserIdRef.current = firstUserId
+      setContent(initial)
+      setUsersState(docUsers)
+      setCurrentUserIdState(firstUserId)
+      save(initial, firstUserId, docUsers)
+    },
+    [save]
+  )
+
   const loaded = content !== null
   const initialValue = initialRef.current ?? initialContent
 
@@ -103,6 +123,7 @@ export function useDocumentStorage(initialContent: Descendant[]) {
     users,
     addUser,
     save,
+    resetDocument,
   }
 }
 

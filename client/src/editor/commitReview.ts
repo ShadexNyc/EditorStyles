@@ -154,27 +154,20 @@ export function acceptSuggestion(editor: Editor, suggestionId: string): boolean 
   entries.sort((a, b) => Path.compare(a.path, b.path))
 
   const insertionPaths: Path[] = []
-  let deletionRange: Range | null = null
-  let firstDeletion: { path: Path; node: FormattedText } | null = null
-  let lastDeletion: { path: Path; node: FormattedText } | null = null
+  const deletionEntries: Array<{ path: Path; node: FormattedText }> = []
 
   for (const { path, node } of entries) {
     const isDeletion = !!(node.suggestionDeletion || node.reviewDelete)
     const isInsertion = !!(node.suggestionInsertion || node.reviewInsert)
     if (isDeletion) {
-      if (!firstDeletion) firstDeletion = { path, node }
-      lastDeletion = { path, node }
+      deletionEntries.push({ path, node })
     } else if (isInsertion) {
       insertionPaths.push(path)
     }
   }
 
-  if (firstDeletion && lastDeletion) {
-    deletionRange = {
-      anchor: { path: firstDeletion.path, offset: 0 },
-      focus: { path: lastDeletion.path, offset: lastDeletion.node.text.length },
-    }
-  }
+  // Удаляем только узлы этой рецензии (в обратном порядке путей), чтобы не задеть другие рецензии между ними
+  deletionEntries.sort((a, b) => Path.compare(b.path, a.path))
 
   for (const path of insertionPaths) {
     try {
@@ -196,8 +189,10 @@ export function acceptSuggestion(editor: Editor, suggestionId: string): boolean 
         split: false,
       })
     }
-    if (deletionRange) {
-      Transforms.delete(editor, { at: deletionRange })
+    for (const { path, node } of deletionEntries) {
+      Transforms.delete(editor, {
+        at: { anchor: { path, offset: 0 }, focus: { path, offset: node.text.length } },
+      })
     }
   })
 
@@ -216,11 +211,27 @@ export function acceptSuggestion(editor: Editor, suggestionId: string): boolean 
 }
 
 export function rejectSuggestion(editor: Editor, suggestionId: string): boolean {
-  const data = getSuggestionRangeAndTexts(editor, suggestionId)
-  if (!data) return false
-  const { range, deletionText } = data
-  const startRef = SlateEditor.pointRef(editor, Range.start(range))
-  Transforms.delete(editor, { at: range })
+  const entries: Array<{ path: Path; node: FormattedText }> = []
+  for (const [node, path] of SlateEditor.nodes(editor, {
+    at: [],
+    match: (n) => Text.isText(n) && (n as FormattedText).suggestionId === suggestionId,
+  })) {
+    entries.push({ path, node: node as FormattedText })
+  }
+  if (entries.length === 0) return false
+  entries.sort((a, b) => Path.compare(a.path, b.path))
+  const deletionText = entries
+    .filter((e) => !!(e.node.suggestionDeletion || e.node.reviewDelete))
+    .map((e) => e.node.text)
+    .join('')
+  const startRef = SlateEditor.pointRef(editor, { path: entries[0].path, offset: 0 })
+  // Удаляем только узлы этой рецензии (с конца), чтобы не задеть другие рецензии между ними
+  const sortedDesc = [...entries].sort((a, b) => Path.compare(b.path, a.path))
+  for (const { path, node } of sortedDesc) {
+    Transforms.delete(editor, {
+      at: { anchor: { path, offset: 0 }, focus: { path, offset: node.text.length } },
+    })
+  }
   const at = startRef.unref()
   if (!at) return true
   Transforms.insertNodes(editor, { text: deletionText } as FormattedText, { at })

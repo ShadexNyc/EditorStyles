@@ -1,6 +1,6 @@
 import { useCallback, useContext } from 'react'
 import { useSlate } from 'slate-react'
-import { getSuggestionsList } from '../../editor/commitReview'
+import { acceptSuggestion, getSuggestionsList, rejectSuggestion } from '../../editor/commitReview'
 import { DocumentContext } from '../../storage/DocumentContext'
 import { getInitials } from '../users/users'
 import { useReview } from './ReviewContext'
@@ -29,9 +29,8 @@ function renderAction(deletionText: string, insertionText: string) {
 export function ReviewCommentsSidebar() {
   const editor = useSlate()
   const { users } = useContext(DocumentContext)
-  const { setFromSidebar, setOpenedSuggestionId, openedSuggestionId } = useContext(
-    ReviewCommentsContext
-  )
+  const { setFromSidebar, setOpenedSuggestionId, openedSuggestionId, setAcceptHoverSuggestionId } =
+    useContext(ReviewCommentsContext)
   const { reviewMode } = useReview()
 
   const suggestions = getSuggestionsList(editor)
@@ -42,6 +41,23 @@ export function ReviewCommentsSidebar() {
       setOpenedSuggestionId(id)
     },
     [setFromSidebar, setOpenedSuggestionId]
+  )
+
+  const handleAccept = useCallback(
+    (e: React.MouseEvent, suggestionId: string) => {
+      e.stopPropagation()
+      setAcceptHoverSuggestionId(null)
+      acceptSuggestion(editor, suggestionId)
+    },
+    [editor, setAcceptHoverSuggestionId]
+  )
+
+  const handleReject = useCallback(
+    (e: React.MouseEvent, suggestionId: string) => {
+      e.stopPropagation()
+      rejectSuggestion(editor, suggestionId)
+    },
+    [editor]
   )
 
   if (!reviewMode) return null
@@ -58,26 +74,54 @@ export function ReviewCommentsSidebar() {
             return (
               <div key={s.id} className="review-comments-bubble-wrap">
                 <div className={`review-comments-bubble ${isOpen ? 'is-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="review-comments-bubble-header"
-                    onClick={() => openBubble(s.id)}
-                    aria-expanded={isOpen}
-                  >
-                    <div
-                      className="review-comments-avatar"
-                      style={{ background: s.authorColor }}
-                      aria-hidden
+                  <div className="review-comments-bubble-header-row">
+                    <button
+                      type="button"
+                      className="review-comments-bubble-header"
+                      onClick={() => openBubble(s.id)}
+                      aria-expanded={isOpen}
                     >
-                      {getInitials(authorName)}
-                    </div>
-                    <div className="review-comments-bubble-content">
-                      <div className="review-comments-author">{authorName}</div>
-                      <div className="review-comments-action">
-                        {renderAction(s.deletionText, s.insertionText)}
+                      <div
+                        className="review-comments-avatar"
+                        style={{ background: s.authorColor }}
+                        aria-hidden
+                      >
+                        {getInitials(authorName)}
                       </div>
+                      <div className="review-comments-bubble-content">
+                        <div className="review-comments-author">{authorName}</div>
+                        <div className="review-comments-action">
+                          {renderAction(s.deletionText, s.insertionText)}
+                        </div>
+                      </div>
+                    </button>
+                    <div className="review-comments-bubble-actions" aria-hidden>
+                      <button
+                        type="button"
+                        className="review-comments-toolbar-btn"
+                        onClick={(e) => handleAccept(e, s.id)}
+                        onMouseEnter={() => setAcceptHoverSuggestionId(s.id)}
+                        onMouseLeave={() => setAcceptHoverSuggestionId(null)}
+                        aria-label="Принять рецензию"
+                        title="Принять рецензию"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="review-comments-toolbar-btn"
+                        onClick={(e) => handleReject(e, s.id)}
+                        aria-label="Отклонить рецензию"
+                        title="Отклонить рецензию"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                   {isOpen && (
                     <div className="review-comments-card">
                       <input
