@@ -1,0 +1,410 @@
+:root {
+  --color-bg-page: #ffffff;
+  --color-bg-canvas: #ffffff;
+  --color-border-canvas: #d0d0d0;
+  --color-text: #333333;
+  --color-text-muted: #666;
+  --color-accent: #5ba3d0;
+  --color-accent-hover: #4a8fbc;
+  --color-header-bg: #ffffff;
+  --color-ribbon-bg: #ffffff;
+  --color-toolbar-group-bg: #ececec;
+  --color-selection: rgba(100, 180, 255, 0.35);
+  --color-cursor: #5ba3d0;
+  --font-family: Arial, sans-serif;
+  --font-size-default: 11pt;
+  --cursor-width: 2px;
+  --cursor-radius: 1px;
+  --shadow-document: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --review-style1-line: #b0b0b0;
+  --review-strikethrough-color: #FF5151;
+  --review-strikethrough-thickness: 2px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size-default);
+  color: var(--color-text);
+  background: var(--color-bg-page);
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 10px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--color-header-bg) !important;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.app-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header-title svg {
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  min-height: 0;
+}
+
+.canvas-wrapper {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  min-height: 0;
+}
+
+.review-comments-sidebar {
+  flex: 0 0 280px;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--color-bg-page);
+}
+
+.review-comments-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.review-comments-empty {
+  margin: 0;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.review-comments-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-comments-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.review-comments-bubble:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.review-comments-bubble.is-open {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(91, 163, 208, 0.2);
+}
+
+.review-comments-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-comments-bubble-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-comments-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.review-comments-action {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.review-comments-action-label {
+  font-weight: 700;
+  color: #000;
+}
+
+.review-comments-card {
+  padding: 0 12px 12px 44px;
+}
+
+.review-comments-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 6px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  outline: none;
+}
+
+.review-comments-input:focus {
+  border-color: var(--color-accent);
+}
+
+.canvas-a4 {
+  box-sizing: border-box;
+  width: 794px;
+  min-height: 1123px;
+  overflow-x: hidden;
+  background: #ffffff;
+  border: 1px solid var(--color-border-canvas);
+  box-shadow: var(--shadow-document);
+  padding: 72px 96px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-default);
+  color: var(--color-text);
+}
+
+.ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--color-ribbon-bg);
+}
+
+.ribbon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  min-height: 42px;
+  border-radius: 16px;
+  background: #EAF0F5;
+  border: none;
+}
+
+.ribbon button,
+.ribbon select {
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.ribbon button:hover,
+.ribbon select:hover {
+  background: #D1DEE9 !important;
+}
+
+.ribbon input[type="color"] {
+  border-radius: 50% !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  padding: 0 !important;
+}
+
+.slate-editor-wrap {
+  position: relative;
+  min-height: 200px;
+  outline: none;
+}
+
+.slate-editor-wrap [contenteditable] {
+  outline: none;
+  caret-color: var(--color-cursor);
+}
+
+.slate-editor-wrap [contenteditable]::selection {
+  background: var(--color-selection);
+  mix-blend-mode: multiply;
+}
+
+.review-strikethrough {
+  text-decoration: line-through !important;
+  text-decoration-color: var(--review-strikethrough-color) !important;
+  text-decoration-thickness: 2px !important;
+}
+
+/* Когда вышли из редактирования — цвет зачёркнутого текста чёрный */
+.review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
+[data-review-style="style-1"] .review-deletion,
+[data-review-style="style-1"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-1"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-2"] .review-deletion,
+[data-review-style="style-2"] .review-insertion {
+  /* оформление текста как в стиле 1 */
+}
+
+/* Стиль 3: как стиль 1, зачёркнутая строка — красная линия */
+[data-review-style="style-3"] .review-deletion,
+[data-review-style="style-3"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-3"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-3"] .review-strikethrough,
+[data-review-style="style-3"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-3"] .review-deletion.review-deletion-editing {
+  color: #E33636 !important;
+}
+
+[data-review-style="style-3"] .review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
+/* Стиль 4: как стиль 3, верхняя и нижняя линии — цвет пользователя (задаётся в SlateEditor) */
+[data-review-style="style-4"] .review-deletion,
+[data-review-style="style-4"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-4"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-4"] .review-strikethrough,
+[data-review-style="style-4"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-4"] .review-deletion.review-deletion-editing {
+  color: #000 !important;
+}
+
+[data-review-style="style-4"] .review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
+/* Стиль 5: цвет текста пользователя, подчёркивание; при редактировании — фон автора 20%, зачёркнутый текст чёрный (задаётся в Leaf) */
+[data-review-style="style-5"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-5"] .review-deletion:not(.review-deletion-editing) {
+  color: var(--review-strikethrough-color) !important;
+}
+
+/* Стиль 6: как стиль 5, при редактировании — серые полоски сверху/снизу как в стиле 1 */
+[data-review-style="style-6"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-6"] .review-deletion:not(.review-deletion-editing) {
+  color: var(--review-strikethrough-color) !important;
+}
+
+/* Тулбар рецензии: ховер кнопок серый, иконки чёрные */
+.review-toolbar .review-toolbar-btn:hover {
+  background: #F2F2F2 !important;
+  color: #000 !important;
+}
+
+/* Стилевые тултипы тулбара: чёрный фон, белый текст, скругление 4px */
+.review-toolbar-tooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 20;
+  box-sizing: border-box;
+}
+
+/* Плавное мигание после принятия правки */
+@keyframes review-accept-flash {
+  0% {
+    color: inherit;
+    background-color: transparent;
+  }
+  20% {
+    color: #16a34a;
+    background-color: rgba(22, 163, 74, 0.1);
+  }
+  80% {
+    color: #16a34a;
+    background-color: rgba(22, 163, 74, 0.08);
+  }
+  100% {
+    color: inherit;
+    background-color: transparent;
+  }
+}
+
+.review-accept-flash {
+  animation: review-accept-flash 0.6s ease-out forwards;
+}

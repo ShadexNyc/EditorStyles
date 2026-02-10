@@ -1,0 +1,14 @@
+{
+  "name": "editer-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js",
+    "lint": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
