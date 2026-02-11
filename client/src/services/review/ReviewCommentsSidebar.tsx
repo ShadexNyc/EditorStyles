@@ -1,10 +1,81 @@
-import { useCallback, useContext } from 'react'
+import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSlate } from 'slate-react'
 import { acceptSuggestion, getSuggestionsList, rejectSuggestion } from '../../editor/commitReview'
 import { DocumentContext } from '../../storage/DocumentContext'
 import { getInitials } from '../users/users'
-import { useReview } from './ReviewContext'
 import { ReviewCommentsContext } from './ReviewCommentsContext'
+
+function CommentToolbarButton({
+  tooltip,
+  ariaLabel,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  iconAccept,
+  iconReject,
+}: {
+  tooltip: string
+  ariaLabel: string
+  onClick: (e: React.MouseEvent) => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
+  iconAccept?: boolean
+  iconReject?: boolean
+}) {
+  const [tooltipVisible, setTooltipVisible] = useState(false)
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({})
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!tooltipVisible || !wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    setTooltipStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
+      transform: 'translateX(-50%)',
+    })
+  }, [tooltipVisible])
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="review-comments-toolbar-btn"
+        onClick={onClick}
+        onMouseEnter={() => {
+          setTooltipVisible(true)
+          onMouseEnter?.()
+        }}
+        onMouseLeave={() => {
+          setTooltipVisible(false)
+          onMouseLeave?.()
+        }}
+        aria-label={ariaLabel}
+        title={tooltip}
+      >
+        {iconAccept && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        )}
+        {iconReject && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        )}
+      </button>
+      {tooltipVisible &&
+        createPortal(
+          <span className="review-toolbar-tooltip review-comments-tooltip" role="tooltip" style={tooltipStyle}>
+            {tooltip}
+          </span>,
+          document.body
+        )}
+    </div>
+  )
+}
 
 function renderAction(deletionText: string, insertionText: string) {
   const hasDel = deletionText.length > 0
@@ -15,6 +86,7 @@ function renderAction(deletionText: string, insertionText: string) {
         <div className="review-comments-action-line review-comments-action-line-first">
           <span className="review-comments-action-label">Заменить:</span> {deletionText}
         </div>
+        <div className="review-comments-action-divider" aria-hidden />
         <div className="review-comments-action-line review-comments-action-line-second">
           <span className="review-comments-action-label">на</span> {insertionText}
         </div>
@@ -31,7 +103,6 @@ export function ReviewCommentsSidebar() {
   const { users } = useContext(DocumentContext)
   const { setFromSidebar, setOpenedSuggestionId, openedSuggestionId, setAcceptHoverSuggestionId } =
     useContext(ReviewCommentsContext)
-  const { reviewMode } = useReview()
 
   const suggestions = getSuggestionsList(editor)
 
@@ -59,8 +130,6 @@ export function ReviewCommentsSidebar() {
     },
     [editor]
   )
-
-  if (!reviewMode) return null
 
   return (
     <aside className="review-comments-sidebar">
@@ -90,37 +159,27 @@ export function ReviewCommentsSidebar() {
                       </div>
                       <div className="review-comments-bubble-content">
                         <div className="review-comments-author">{authorName}</div>
-                        <div className="review-comments-action">
-                          {renderAction(s.deletionText, s.insertionText)}
-                        </div>
                       </div>
                     </button>
                     <div className="review-comments-bubble-actions" aria-hidden>
-                      <button
-                        type="button"
-                        className="review-comments-toolbar-btn"
+                      <CommentToolbarButton
+                        tooltip="Принять правку"
                         onClick={(e) => handleAccept(e, s.id)}
                         onMouseEnter={() => setAcceptHoverSuggestionId(s.id)}
                         onMouseLeave={() => setAcceptHoverSuggestionId(null)}
-                        aria-label="Принять рецензию"
-                        title="Принять рецензию"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="review-comments-toolbar-btn"
+                        ariaLabel="Принять правку"
+                        iconAccept
+                      />
+                      <CommentToolbarButton
+                        tooltip="Отменить"
                         onClick={(e) => handleReject(e, s.id)}
-                        aria-label="Отклонить рецензию"
-                        title="Отклонить рецензию"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
+                        ariaLabel="Отменить"
+                        iconReject
+                      />
                     </div>
+                  </div>
+                  <div className="review-comments-action">
+                    {renderAction(s.deletionText, s.insertionText)}
                   </div>
                   {isOpen && (
                     <div className="review-comments-card">

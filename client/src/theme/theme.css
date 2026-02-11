@@ -101,6 +101,7 @@ html, body {
   right: auto;
   width: 280px;
   max-height: calc(100% - 48px);
+  overflow-x: hidden;
   overflow-y: auto;
   background: var(--color-bg-page);
 }
@@ -131,33 +132,33 @@ html, body {
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-canvas);
-  border-radius: 8px;
-  background: #fff;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #F0F0F0;
   text-align: left;
   font-family: var(--font-family);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .review-comments-bubble:hover {
-  border-color: var(--color-accent);
+  background: #F0F0F0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .review-comments-bubble.is-open {
-  border-color: var(--color-accent);
-  box-shadow: 0 2px 8px rgba(91, 163, 208, 0.2);
+  background: #F0F0F0;
+  box-shadow: none;
 }
 
 .review-comments-bubble-header-row {
-  padding-right: 56px;
   min-width: 0;
+  padding-right: 56px;
 }
 
 .review-comments-bubble-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
   min-width: 0;
@@ -171,7 +172,7 @@ html, body {
 
 .review-comments-bubble-actions {
   position: absolute;
-  top: 10px;
+  top: 12px;
   right: 12px;
   display: flex;
   align-items: center;
@@ -191,7 +192,7 @@ html, body {
 }
 
 .review-comments-bubble-actions .review-comments-toolbar-btn:hover {
-  background: #F2F2F2;
+  background: #E0E0E0;
   color: #000;
 }
 
@@ -216,6 +217,8 @@ html, body {
 .review-comments-bubble-content {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .review-comments-author {
@@ -230,15 +233,25 @@ html, body {
   color: var(--color-text-muted);
   line-height: 1.35;
   word-break: break-word;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .review-comments-action-label {
   font-weight: 700;
-  color: #000;
+  color: var(--color-text-muted);
+}
+
+.review-comments-action-divider {
+  height: 0;
+  width: 100%;
+  border-top: 1px solid var(--color-border-canvas);
+  margin: 6px 0;
+  box-sizing: border-box;
 }
 
 .review-comments-action-line-first {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .review-comments-action-line-second {
@@ -246,7 +259,7 @@ html, body {
 }
 
 .review-comments-card {
-  padding: 0 0 12px 0;
+  padding: 0;
   width: 100%;
   box-sizing: border-box;
 }
@@ -257,7 +270,7 @@ html, body {
   padding: 8px 10px;
   margin-top: 8px;
   border: 1px solid var(--color-border-canvas);
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: var(--font-family);
   font-size: 13px;
   outline: none;
@@ -389,6 +402,11 @@ html, body {
   background-color: rgba(255, 0, 0, 0.1) !important;
 }
 
+/* Кнопка «Принять» в комментариях: подсветка зелёным только предложенного текста (вставки), зачёркнутый не подсвечиваем */
+.review-accept-highlight.review-insertion {
+  background-color: rgba(34, 197, 94, 0.25) !important;
+}
+
 [data-review-style="style-1"] .review-deletion,
 [data-review-style="style-1"] .review-insertion {
   /* оформление задаётся инлайном в Leaf */
@@ -449,6 +467,28 @@ html, body {
   color: #000 !important;
 }
 
+/* Стиль 7: как стиль 4, в начале вставки — 3px вертикальная линия в цвет пользователя (когда не редактирует) */
+[data-review-style="style-7"] .review-deletion,
+[data-review-style="style-7"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+/* у style-7 НЕ сбрасываем border-left — вертикальная линия в начале выделения задаётся в SlateEditor */
+
+[data-review-style="style-7"] .review-strikethrough,
+[data-review-style="style-7"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+/* Стиль 7: зачёркнутый текст — красные буквы в обычном режиме и при редактировании */
+[data-review-style="style-7"] .review-deletion.review-deletion-editing {
+  color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-7"] .review-deletion:not(.review-deletion-editing) {
+  color: var(--review-strikethrough-color) !important;
+}
+
 /* Стиль 5: цвет текста пользователя, подчёркивание; при редактировании — фон автора 20%, зачёркнутый текст чёрный (задаётся в Leaf) */
 [data-review-style="style-5"] .review-insertion {
   border-left: none !important;
@@ -488,6 +528,11 @@ html, body {
   pointer-events: none;
   z-index: 20;
   box-sizing: border-box;
+}
+
+/* Тултипы в комментариях: рендер в портале, поверх карточки */
+.review-comments-tooltip {
+  z-index: 9999;
 }
 
 /* Плавное мигание после принятия правки */

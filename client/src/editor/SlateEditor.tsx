@@ -92,13 +92,14 @@ function Leaf({
   const text = leaf as FormattedText
   const style: React.CSSProperties = {}
   const isDeletionLeaf = text.suggestionDeletion || text.reviewDelete
-  const isInsertionForAcceptHighlight =
+  /* Вне редактирования рецензии (кнопка «Принять» в комментариях): подсвечивать зелёным только предложенный текст (вставку), зачёркнутый не подсвечиваем */
+  const isAcceptHighlight =
     acceptHover &&
     acceptHighlightSuggestionId != null &&
-    text.suggestionId === acceptHighlightSuggestionId &&
-    !isDeletionLeaf
-  if (isInsertionForAcceptHighlight) {
-    style.backgroundColor = 'rgba(34, 197, 94, 0.2)'
+    text.suggestionId === acceptHighlightSuggestionId
+  const isInsertionAcceptHighlight = isAcceptHighlight && !isDeletionLeaf
+  if (isInsertionAcceptHighlight) {
+    style.backgroundColor = 'rgba(34, 197, 94, 0.25)'
   }
   if (text.bold) style.fontWeight = 'bold'
   if (text.italic) style.fontStyle = 'italic'
@@ -125,12 +126,13 @@ function Leaf({
         style.color = isDeletion ? 'var(--review-strikethrough-color)' : text.authorColor
         style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
       } else {
+        /* В режиме редактирования красные буквы только у зачёркнутого текста (удаление) */
         if (reviewStyleId === 'style-6') {
           if (isDeletion) style.color = 'var(--review-strikethrough-color)'
         } else {
           if (isDeletion) {
-            style.color = '#000'
-          } else {
+            style.color = 'var(--review-strikethrough-color)'
+          } else if (!isInsertionAcceptHighlight) {
             style.backgroundColor = authorColorToRgba(text.authorColor, 0.2) ?? text.authorColor
           }
         }
@@ -140,7 +142,10 @@ function Leaf({
       style.textDecoration = (style.textDecoration || '') ? `${style.textDecoration} line-through` : 'line-through'
       style.textDecorationColor = 'var(--review-strikethrough-color)'
       style.textDecorationThickness = '2px'
-      style.backgroundColor = 'rgba(255, 0, 0, 0.1)'
+      /* Стиль 5: красный фон только при редактировании; стиль 6: всегда красный фон */
+      if (reviewStyleId === 'style-6' || (reviewStyleId === 'style-5' && isEditingThisSuggestion)) {
+        style.backgroundColor = 'rgba(255, 0, 0, 0.1)'
+      }
     }
   } else {
     if (isDeletion) {
@@ -154,9 +159,9 @@ function Leaf({
     if (isInsertionNode) {
       style.display = 'inline'
       style.marginRight = '2px'
-      style.borderLeft = `3px solid ${showInsertionStyle && text.authorColor ? text.authorColor : 'transparent'}`
+      style.borderLeft = `3px solid ${showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight ? text.authorColor : 'transparent'}`
     }
-    if (showInsertionStyle && text.authorColor) {
+    if (showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight) {
       style.backgroundColor = authorColorToRgba(text.authorColor, 0.3) ?? text.authorColor
       style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
     } else if (showInsertionStyle) {
@@ -170,11 +175,15 @@ function Leaf({
     if (isDeletion) dataProps['data-review-type'] = 'deletion'
     else if (isInsertionNode) dataProps['data-review-type'] = 'insertion'
   }
+  if (isInsertionAcceptHighlight) {
+    dataProps['data-accept-highlight'] = 'true'
+  }
   const reviewClasses = [
     isDeletion && 'review-deletion',
     isDeletion && isEditingThisSuggestion && 'review-deletion-editing',
     (isInsertionNode || showInsertionStyle) && 'review-insertion',
     text.acceptFlash && 'review-accept-flash',
+    isInsertionAcceptHighlight && 'review-accept-highlight',
   ]
     .filter(Boolean)
     .join(' ')
@@ -358,11 +367,11 @@ function ReviewEditingOverlay({
         setLineRects([])
         return
       }
-      /* Стиль 1/3/4: линии строго по символам — от первого символа рецензии до последнего на каждой строке.
-       * Верхняя линия: первая строка рецензии (minLeft..maxRight первой строки).
-       * Нижняя линия: последняя строка рецензии (minLeft..конец зачёркнутого на последней строке).
-       * Линии не тянутся на всю ширину документа. */
-      const lineTolerance = 8
+      /* Стиль 1/3/4: линии строго по символам — от первого до последнего символа рецензии на каждой строке.
+       * Верхняя линия: первая строка (minLeft..maxRight первой строки, включая зачёркнутый текст).
+       * Нижняя линия: последняя строка (minLeft рецензии..maxRight зачёркнутого на последней строке).
+       * Учитываются переносы: одна линия сверху над первой строкой, одна снизу под последней. */
+      const lineTolerance = 3
       const byLine: Array<{ top: number; bottom: number; minLeft: number; maxRight: number }> = []
       const lineKeys = new Set<number>()
       nodeRects.forEach((r) => {
@@ -386,72 +395,70 @@ function ReviewEditingOverlay({
         if (minLeft !== Infinity)
           byLine.push({ top: minTop, bottom: maxBottom, minLeft, maxRight })
       })
+      byLine.sort((a, b) => a.top - b.top)
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
-      const lineColor = reviewStyleId === 'style-4' || reviewStyleId === 'style-5' ? authorColor : style1LineColor
+      const lineColor = reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' ? authorColor : style1LineColor
       if (byLine.length === 0) {
         setStyle1TopBottom(null)
         setLineRects([])
         return
       }
       const first = byLine[0]
-      /* Нижняя линия: заканчивается на последнем символе перечёркнутого (deletion). Последняя строка = строка с концом зачёркивания. */
+      const firstLineTop = first.top
+      const firstLineBottom = first.bottom
+      const lastLineInfo = byLine.reduce((a, b) => (a.bottom > b.bottom ? a : b))
+      const lastLineTop = lastLineInfo.top
+      const lastLineBottom = lastLineInfo.bottom
+      const lineOverlapTolerance = 1
+
+      function rectsOnLine(el: Element, lineTop: number, lineBottom: number): DOMRect[] {
+        const list = (el as HTMLElement).getClientRects()
+        return Array.from(list).filter(
+          (r) => r.top < lineBottom + lineOverlapTolerance && r.bottom > lineTop - lineOverlapTolerance
+        )
+      }
+
+      let firstMinLeft = Infinity
+      let firstMaxRight = -Infinity
+      Array.from(nodes).forEach((el) => {
+        rectsOnLine(el, firstLineTop, firstLineBottom).forEach((r) => {
+          firstMinLeft = Math.min(firstMinLeft, r.left)
+          firstMaxRight = Math.max(firstMaxRight, r.right)
+        })
+      })
+      if (firstMinLeft === Infinity) {
+        firstMinLeft = first.minLeft
+        firstMaxRight = first.maxRight
+      }
+
       const deletionNodes = container.querySelectorAll(
         `[data-suggestion-id="${editingSuggestionId}"][data-review-type="deletion"]`
       )
-      const lastLineTolerance = 14
-      let lastLineBottom = -Infinity
-      const deletionByLine = new Map<number, { minLeft: number; maxRight: number; bottom: number }>()
-      deletionNodes.forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect()
-        const key = Math.round(r.top / lineTolerance) * lineTolerance
-        lastLineBottom = Math.max(lastLineBottom, r.bottom)
-        const cur = deletionByLine.get(key)
-        if (!cur) {
-          deletionByLine.set(key, { minLeft: r.left, maxRight: r.right, bottom: r.bottom })
-        } else {
-          cur.minLeft = Math.min(cur.minLeft, r.left)
-          cur.maxRight = Math.max(cur.maxRight, r.right)
-          cur.bottom = Math.max(cur.bottom, r.bottom)
-        }
-      })
-      /* Строка, на которой заканчивается зачёркивание — та, у которой максимальный bottom */
-      const deletionEntries = Array.from(deletionByLine.entries())
-      const lastDeletionEntry = deletionEntries.reduce<[number, { minLeft: number; maxRight: number; bottom: number }]>(
-        (best, [key, data]) => (data.bottom > best[1].bottom ? [key, data] : best),
-        deletionEntries[0] ?? [0, { minLeft: Infinity, maxRight: -Infinity, bottom: -Infinity }]
-      )
-      const lastDeletionLine = lastDeletionEntry[1]
-      if (lastDeletionLine.bottom > -Infinity) {
-        lastLineBottom = lastDeletionLine.bottom
-      } else {
-        lastLineBottom = byLine.reduce((a, b) => (a.bottom > b.bottom ? a : b)).bottom
-      }
-      /* На последней строке: слева — начало рецензии (minLeft всех узлов на этой строке), справа — конец перечёркнутого (maxRight deletion) */
-      let lastMinLeft = lastDeletionLine.minLeft
-      let lastMaxRight = lastDeletionLine.maxRight
+      let lastMinLeft = Infinity
+      let lastMaxRightFromDeletion = -Infinity
+      let lastMaxRightFromAll = -Infinity
       Array.from(nodes).forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect()
-        if (Math.abs(r.bottom - lastLineBottom) <= lastLineTolerance) {
+        rectsOnLine(el, lastLineTop, lastLineBottom).forEach((r) => {
           lastMinLeft = Math.min(lastMinLeft, r.left)
-        }
+          lastMaxRightFromAll = Math.max(lastMaxRightFromAll, r.right)
+        })
       })
-      if (lastMaxRight === -Infinity) {
-        const last = byLine.reduce((a, b) => (a.bottom > b.bottom ? a : b))
-        lastMinLeft = last.minLeft
-        lastMaxRight = last.maxRight
-      }
-      /* Верхняя линия: строго от первого до последнего символа рецензии на первой строке */
-      const topNaturalWidth = first.maxRight - first.minLeft
+      Array.from(deletionNodes).forEach((el) => {
+        rectsOnLine(el, lastLineTop, lastLineBottom).forEach((r) => {
+          lastMaxRightFromDeletion = Math.max(lastMaxRightFromDeletion, r.right)
+        })
+      })
+      let lastMaxRight = lastMaxRightFromDeletion > -Infinity ? lastMaxRightFromDeletion : lastMaxRightFromAll
+      if (lastMinLeft === Infinity) lastMinLeft = lastLineInfo.minLeft
+      if (lastMaxRight === -Infinity) lastMaxRight = lastLineInfo.maxRight
       const topLineTop = Math.max(0, first.top - containerRect.top - lineGap)
-      const topLeft = Math.max(0, first.minLeft - containerRect.left)
-      const topW = Math.min(topNaturalWidth, containerWidth - topLeft)
-      /* Нижняя линия: от первого символа рецензии до последнего символа перечёркнутого на последней строке, перенос на новую строку учтён */
-      const bottomNaturalWidth = lastMaxRight - lastMinLeft
+      const topLeft = Math.max(0, firstMinLeft - containerRect.left)
       const bottomLineTop = lastLineBottom - containerRect.top + lineGap
       const bottomLeft = Math.max(0, lastMinLeft - containerRect.left)
-      const bottomW = Math.max(0, Math.min(bottomNaturalWidth, containerWidth - bottomLeft))
+      const topW = Math.max(0, Math.min(firstMaxRight - firstMinLeft, containerWidth - topLeft))
+      const bottomW = Math.max(0, Math.min(lastMaxRight - lastMinLeft, containerWidth - bottomLeft))
       if (topW <= 0 && bottomW <= 0) {
         setStyle1TopBottom(null)
       } else {
