@@ -98,6 +98,31 @@ export function getSuggestionRangeAndTexts(
   return { range, insertionText, deletionText }
 }
 
+/** Текст от начала рецензии до конца зачёркнутого (в порядке документа). Используется для расчёта длины линий по символам. */
+export function getSuggestionSpanForLines(
+  editor: Editor,
+  suggestionId: string
+): { spanText: string } | null {
+  const entries: Array<{ path: Path; node: FormattedText }> = []
+  for (const [node, path] of SlateEditor.nodes(editor, {
+    at: [],
+    match: (n) => Text.isText(n) && (n as FormattedText).suggestionId === suggestionId,
+  })) {
+    entries.push({ path, node: node as FormattedText })
+  }
+  if (entries.length === 0) return null
+  entries.sort((a, b) => Path.compare(a.path, b.path))
+  let fullText = ''
+  let spanLength = 0
+  for (const { node } of entries) {
+    fullText += node.text
+    if (!!(node.suggestionDeletion || node.reviewDelete)) {
+      spanLength = fullText.length
+    }
+  }
+  return { spanText: fullText.slice(0, spanLength || fullText.length) }
+}
+
 export interface SuggestionInfo {
   id: string
   authorId: string | undefined
@@ -210,6 +235,10 @@ export function acceptSuggestion(editor: Editor, suggestionId: string): boolean 
   return true
 }
 
+/**
+ * Отклонить правку: зачёркнутый текст не удаляем — снимаем с него разметку рецензии (он возвращается в документ как обычный).
+ * Вставленный (зелёный) текст удаляем.
+ */
 export function rejectSuggestion(editor: Editor, suggestionId: string): boolean {
   const entries: Array<{ path: Path; node: FormattedText }> = []
   for (const [node, path] of SlateEditor.nodes(editor, {
@@ -220,20 +249,42 @@ export function rejectSuggestion(editor: Editor, suggestionId: string): boolean 
   }
   if (entries.length === 0) return false
   entries.sort((a, b) => Path.compare(a.path, b.path))
-  const deletionText = entries
-    .filter((e) => !!(e.node.suggestionDeletion || e.node.reviewDelete))
-    .map((e) => e.node.text)
-    .join('')
-  const startRef = SlateEditor.pointRef(editor, { path: entries[0].path, offset: 0 })
-  // Удаляем только узлы этой рецензии (с конца), чтобы не задеть другие рецензии между ними
-  const sortedDesc = [...entries].sort((a, b) => Path.compare(b.path, a.path))
-  for (const { path, node } of sortedDesc) {
-    Transforms.delete(editor, {
-      at: { anchor: { path, offset: 0 }, focus: { path, offset: node.text.length } },
-    })
+
+  const insertionEntries: Array<{ path: Path; node: FormattedText }> = []
+  const deletionEntries: Array<{ path: Path; node: FormattedText }> = []
+
+  for (const entry of entries) {
+    const isDeletion = !!(entry.node.suggestionDeletion || entry.node.reviewDelete)
+    const isInsertion = !!(entry.node.suggestionInsertion || entry.node.reviewInsert)
+    if (isDeletion) deletionEntries.push(entry)
+    else if (isInsertion) insertionEntries.push(entry)
   }
-  const at = startRef.unref()
-  if (!at) return true
-  Transforms.insertNodes(editor, { text: deletionText } as FormattedText, { at })
+
+  SlateEditor.withoutNormalizing(editor, () => {
+    // Зачёркнутый текст: только снимаем разметку рецензии — текст остаётся в документе как обычный
+    for (const { path } of deletionEntries) {
+      try {
+        Transforms.unsetNodes(editor, ['suggestionId', 'suggestionInsertion', 'suggestionDeletion', 'reviewInsert', 'reviewDelete', 'authorId', 'authorColor'], {
+          at: path,
+          match: (n) => Text.isText(n),
+          split: false,
+        })
+      } catch {
+        // путь мог стать невалидным после удаления вставок
+      }
+    }
+    // Вставленный текст: удаляем из документа (в обратном порядке путей)
+    insertionEntries.sort((a, b) => Path.compare(b.path, a.path))
+    for (const { path, node } of insertionEntries) {
+      try {
+        Transforms.delete(editor, {
+          at: { anchor: { path, offset: 0 }, focus: { path, offset: node.text.length } },
+        })
+      } catch {
+        // путь мог стать невалидным после предыдущих удалений
+      }
+    }
+  })
+
   return true
 }

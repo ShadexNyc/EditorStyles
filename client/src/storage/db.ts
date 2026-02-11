@@ -1,4 +1,4 @@
-import { openDB } from 'idb'
+import { openDB, deleteDB } from 'idb'
 import type { Descendant } from 'slate'
 import type { User } from '../services/users/users'
 
@@ -43,3 +43,9 @@ export async function setDocument(record: Omit<DocumentRecord, 'updatedAt'>): Pr
 }
 
 export const DEFAULT_DOCUMENT_ID = 'default'
+
+/** Deletes the app IndexedDB database (used on page refresh to clear all local data). */
+export async function deleteAppDatabase(): Promise<void> {
+  dbPromise = null
+  await deleteDB(DB_NAME)
+}

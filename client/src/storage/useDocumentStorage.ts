@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Descendant } from 'slate'
 import type { User } from '../services/users/users'
 import { DEFAULT_USERS, createNewUser, MAX_USERS } from '../services/users/users'
-import { DEFAULT_DOCUMENT_ID, getDocument, setDocument } from './db'
+import { DEFAULT_DOCUMENT_ID, deleteAppDatabase, getDocument, setDocument } from './db'
 import type { DocumentRecord } from './db'
 
 const SAVE_DEBOUNCE_MS = 1500
@@ -20,22 +20,24 @@ export function useDocumentStorage(initialContent: Descendant[]) {
 
   useEffect(() => {
     let cancelled = false
-    getDocument(DEFAULT_DOCUMENT_ID).then((record) => {
-      if (cancelled) return
-      const docUsers =
-        record?.users != null && record.users.length > 0 ? record.users : DEFAULT_USERS
-      const docContent = record?.content?.length ? record.content : initialContent
-      const firstUserId = docUsers[0]?.id
-      const docCurrentUserId = record?.currentUserId ?? firstUserId
+    deleteAppDatabase()
+      .then(() => getDocument(DEFAULT_DOCUMENT_ID))
+      .then((record) => {
+        if (cancelled) return
+        const docUsers =
+          record?.users != null && record.users.length > 0 ? record.users : DEFAULT_USERS
+        const docContent = record?.content?.length ? record.content : initialContent
+        const firstUserId = docUsers[0]?.id
+        const docCurrentUserId = record?.currentUserId ?? firstUserId
 
-      initialRef.current = docContent
-      contentRef.current = docContent
-      usersRef.current = docUsers
-      setContent(docContent)
-      setUsersState(docUsers)
-      setCurrentUserIdState(docCurrentUserId)
-      currentUserIdRef.current = docCurrentUserId
-    })
+        initialRef.current = docContent
+        contentRef.current = docContent
+        usersRef.current = docUsers
+        setContent(docContent)
+        setUsersState(docUsers)
+        setCurrentUserIdState(docCurrentUserId)
+        currentUserIdRef.current = docCurrentUserId
+      })
     return () => {
       cancelled = true
     }
