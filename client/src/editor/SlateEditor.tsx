@@ -247,6 +247,26 @@ function ReviewEditingOverlay({
   const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
   const useVerticalLines = reviewStyleId === 'style-2'
 
+  const renderTopBottomSegments = (segments: TopBottomSegment[]) =>
+    segments.map((line, i) => (
+      <div
+        key={i}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: line.top,
+          left: line.left,
+          width: line.width,
+          height: line.height,
+          ...(line.edge === 'top'
+            ? { borderTop: `2px solid ${line.color}` }
+            : { borderBottom: `2px solid ${line.color}` }),
+          pointerEvents: 'none',
+          boxSizing: 'border-box',
+        }}
+      />
+    ))
+
   const measure = useCallback(() => {
     if (!editingSuggestionId || !containerRef.current) {
       setLineRects([])
@@ -477,24 +497,7 @@ function ReviewEditingOverlay({
     return (
       <>
         {style1TopBottom != null &&
-          style1TopBottom.map((line, i) => (
-            <div
-              key={i}
-              aria-hidden
-              style={{
-                position: 'absolute',
-                top: line.top,
-                left: line.left,
-                width: line.width,
-                height: line.height,
-                ...(line.edge === 'top'
-                  ? { borderTop: `2px solid ${line.color}` }
-                  : { borderBottom: `2px solid ${line.color}` }),
-                pointerEvents: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          ))}
+          renderTopBottomSegments(style1TopBottom)}
         <div
           className="review-toolbar"
           role="toolbar"
@@ -595,28 +598,7 @@ function ReviewEditingOverlay({
   }
 
   if (style1TopBottom) {
-    return (
-      <>
-        {style1TopBottom.map((line, i) => (
-          <div
-            key={i}
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: line.top,
-              left: line.left,
-              width: line.width,
-              height: line.height,
-              ...(line.edge === 'top'
-                ? { borderTop: `2px solid ${line.color}` }
-                : { borderBottom: `2px solid ${line.color}` }),
-              pointerEvents: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        ))}
-      </>
-    )
+    return <>{renderTopBottomSegments(style1TopBottom)}</>
   }
 
   return null
