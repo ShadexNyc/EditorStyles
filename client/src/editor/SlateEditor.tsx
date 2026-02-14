@@ -217,6 +217,7 @@ function useEditingSuggestionId(): string | null {
 }
 
 type LineRect = { top: number; left: number; width: number; height: number; color: string; rightBorder?: boolean }
+type TopBottomSegment = LineRect & { edge: 'top' | 'bottom' }
 
 type ToolbarRect = { top: number; left: number; width: number }
 
@@ -240,10 +241,30 @@ function ReviewEditingOverlay({
   onReject: () => void
 }) {
   const [lineRects, setLineRects] = useState<LineRect[]>([])
-  const [style1TopBottom, setStyle1TopBottom] = useState<LineRect[] | null>(null)
+  const [style1TopBottom, setStyle1TopBottom] = useState<TopBottomSegment[] | null>(null)
   const [toolbarRect, setToolbarRect] = useState<ToolbarRect | null>(null)
   const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
   const useVerticalLines = reviewStyleId === 'style-2'
+
+  const renderTopBottomSegments = (segments: TopBottomSegment[]) =>
+    segments.map((line, i) => (
+      <div
+        key={i}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: line.top,
+          left: line.left,
+          width: line.width,
+          height: line.height,
+          ...(line.edge === 'top'
+            ? { borderTop: `2px solid ${line.color}` }
+            : { borderBottom: `2px solid ${line.color}` }),
+          pointerEvents: 'none',
+          boxSizing: 'border-box',
+        }}
+      />
+    ))
 
   const measure = useCallback(() => {
     if (!editingSuggestionId || !containerRef.current) {
@@ -367,105 +388,63 @@ function ReviewEditingOverlay({
         setLineRects([])
         return
       }
-      /* Стиль 1/3/4: линии строго по символам — от первого до последнего символа рецензии на каждой строке.
-       * Верхняя линия: первая строка (minLeft..maxRight первой строки, включая зачёркнутый текст).
-       * Нижняя линия: последняя строка (minLeft рецензии..maxRight зачёркнутого на последней строке).
-       * Учитываются переносы: одна линия сверху над первой строкой, одна снизу под последней. */
+      /* Стиль 1/3/4/6: сегменты линий по каждой визуальной строке рецензии.
+       * Для точной геометрии собираем getClientRects() всех узлов рецензии,
+       * группируем по строкам и рисуем верх/низ на каждой строке. */
       const lineTolerance = 3
-      const byLine: Array<{ top: number; bottom: number; minLeft: number; maxRight: number }> = []
-      const lineKeys = new Set<number>()
-      nodeRects.forEach((r) => {
-        const key = Math.round(r.top / lineTolerance) * lineTolerance
-        lineKeys.add(key)
-      })
-      const sortedKeys = Array.from(lineKeys).sort((a, b) => a - b)
-      sortedKeys.forEach((key) => {
-        let minLeft = Infinity,
-          maxRight = -Infinity,
-          minTop = Infinity,
-          maxBottom = -Infinity
-        nodeRects.forEach((r) => {
-          const rKey = Math.round(r.top / lineTolerance) * lineTolerance
-          if (rKey !== key) return
-          minLeft = Math.min(minLeft, r.left)
-          maxRight = Math.max(maxRight, r.right)
-          minTop = Math.min(minTop, r.top)
-          maxBottom = Math.max(maxBottom, r.bottom)
+      const visualLines: Array<{ top: number; bottom: number; rects: DOMRect[] }> = []
+      Array.from(nodes).forEach((el) => {
+        const rects = Array.from((el as HTMLElement).getClientRects()).filter((r) => r.width > 0 && r.height > 0)
+        rects.forEach((rect) => {
+          const line = visualLines.find((candidate) => Math.abs(candidate.top - rect.top) <= lineTolerance)
+          if (!line) {
+            visualLines.push({ top: rect.top, bottom: rect.bottom, rects: [rect] })
+            return
+          }
+          line.top = Math.min(line.top, rect.top)
+          line.bottom = Math.max(line.bottom, rect.bottom)
+          line.rects.push(rect)
         })
-        if (minLeft !== Infinity)
-          byLine.push({ top: minTop, bottom: maxBottom, minLeft, maxRight })
       })
-      byLine.sort((a, b) => a.top - b.top)
+
+      const lineSegments = visualLines
+        .map((line) => {
+          let minLeft = Infinity
+          let maxRight = -Infinity
+          line.rects.forEach((rect) => {
+            minLeft = Math.min(minLeft, rect.left)
+            maxRight = Math.max(maxRight, rect.right)
+          })
+          if (minLeft === Infinity || maxRight === -Infinity) return null
+          return { top: line.top, bottom: line.bottom, minLeft, maxRight }
+        })
+        .filter((line): line is { top: number; bottom: number; minLeft: number; maxRight: number } => line != null)
+        .sort((a, b) => a.top - b.top)
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
       const lineColor = reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' ? authorColor : style1LineColor
-      if (byLine.length === 0) {
+      if (lineSegments.length === 0) {
         setStyle1TopBottom(null)
         setLineRects([])
         return
       }
-      const first = byLine[0]
-      const firstLineTop = first.top
-      const firstLineBottom = first.bottom
-      const lastLineInfo = byLine.reduce((a, b) => (a.bottom > b.bottom ? a : b))
-      const lastLineTop = lastLineInfo.top
-      const lastLineBottom = lastLineInfo.bottom
-      const lineOverlapTolerance = 1
 
-      function rectsOnLine(el: Element, lineTop: number, lineBottom: number): DOMRect[] {
-        const list = (el as HTMLElement).getClientRects()
-        return Array.from(list).filter(
-          (r) => r.top < lineBottom + lineOverlapTolerance && r.bottom > lineTop - lineOverlapTolerance
-        )
-      }
+      const topBottomSegments: TopBottomSegment[] = []
+      lineSegments.forEach((line) => {
+        const left = Math.max(0, line.minLeft - containerRect.left)
+        const width = Math.max(0, Math.min(line.maxRight - line.minLeft, containerWidth - left))
+        if (width <= 0) return
+        const top = Math.max(0, line.top - containerRect.top - lineGap)
+        const bottom = line.bottom - containerRect.top + lineGap
+        topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
+        topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
+      })
 
-      let firstMinLeft = Infinity
-      let firstMaxRight = -Infinity
-      Array.from(nodes).forEach((el) => {
-        rectsOnLine(el, firstLineTop, firstLineBottom).forEach((r) => {
-          firstMinLeft = Math.min(firstMinLeft, r.left)
-          firstMaxRight = Math.max(firstMaxRight, r.right)
-        })
-      })
-      if (firstMinLeft === Infinity) {
-        firstMinLeft = first.minLeft
-        firstMaxRight = first.maxRight
-      }
-
-      const deletionNodes = container.querySelectorAll(
-        `[data-suggestion-id="${editingSuggestionId}"][data-review-type="deletion"]`
-      )
-      let lastMinLeft = Infinity
-      let lastMaxRightFromDeletion = -Infinity
-      let lastMaxRightFromAll = -Infinity
-      Array.from(nodes).forEach((el) => {
-        rectsOnLine(el, lastLineTop, lastLineBottom).forEach((r) => {
-          lastMinLeft = Math.min(lastMinLeft, r.left)
-          lastMaxRightFromAll = Math.max(lastMaxRightFromAll, r.right)
-        })
-      })
-      Array.from(deletionNodes).forEach((el) => {
-        rectsOnLine(el, lastLineTop, lastLineBottom).forEach((r) => {
-          lastMaxRightFromDeletion = Math.max(lastMaxRightFromDeletion, r.right)
-        })
-      })
-      let lastMaxRight = lastMaxRightFromDeletion > -Infinity ? lastMaxRightFromDeletion : lastMaxRightFromAll
-      if (lastMinLeft === Infinity) lastMinLeft = lastLineInfo.minLeft
-      if (lastMaxRight === -Infinity) lastMaxRight = lastLineInfo.maxRight
-      const topLineTop = Math.max(0, first.top - containerRect.top - lineGap)
-      const topLeft = Math.max(0, firstMinLeft - containerRect.left)
-      const bottomLineTop = lastLineBottom - containerRect.top + lineGap
-      const bottomLeft = Math.max(0, lastMinLeft - containerRect.left)
-      const topW = Math.max(0, Math.min(firstMaxRight - firstMinLeft, containerWidth - topLeft))
-      const bottomW = Math.max(0, Math.min(lastMaxRight - lastMinLeft, containerWidth - bottomLeft))
-      if (topW <= 0 && bottomW <= 0) {
+      if (topBottomSegments.length === 0) {
         setStyle1TopBottom(null)
       } else {
-        setStyle1TopBottom([
-          { top: topLineTop, left: topLeft, width: Math.max(0, topW), height: lineHeight, color: lineColor },
-          { top: bottomLineTop, left: bottomLeft, width: Math.max(0, bottomW), height: lineHeight, color: lineColor },
-        ])
+        setStyle1TopBottom(topBottomSegments)
       }
       setLineRects([])
     }
@@ -516,39 +495,8 @@ function ReviewEditingOverlay({
   if (editingSuggestionId && toolbarRect && showToolbar) {
     return (
       <>
-        {style1TopBottom != null && (
-          <>
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                top: style1TopBottom[0].top,
-                left: style1TopBottom[0].left,
-                width: style1TopBottom[0].width,
-                height: style1TopBottom[0].height,
-                borderTop: `2px solid ${style1TopBottom[0].color}`,
-                pointerEvents: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            {style1TopBottom.slice(1).map((line, i) => (
-              <div
-                key={i}
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  top: line.top,
-                  left: line.left,
-                  width: line.width,
-                  height: line.height,
-                  borderBottom: `2px solid ${line.color}`,
-                  pointerEvents: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            ))}
-          </>
-        )}
+        {style1TopBottom != null &&
+          renderTopBottomSegments(style1TopBottom)}
         <div
           className="review-toolbar"
           role="toolbar"
@@ -649,40 +597,7 @@ function ReviewEditingOverlay({
   }
 
   if (style1TopBottom) {
-    const [topLine, ...bottomLines] = style1TopBottom
-    return (
-      <>
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: topLine.top,
-            left: topLine.left,
-            width: topLine.width,
-            height: topLine.height,
-            borderTop: `2px solid ${topLine.color}`,
-            pointerEvents: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-        {bottomLines.map((line, i) => (
-          <div
-            key={i}
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: line.top,
-              left: line.left,
-              width: line.width,
-              height: line.height,
-              borderBottom: `2px solid ${line.color}`,
-              pointerEvents: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        ))}
-      </>
-    )
+    return <>{renderTopBottomSegments(style1TopBottom)}</>
   }
 
   return null
