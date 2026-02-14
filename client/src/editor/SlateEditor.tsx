@@ -220,6 +220,47 @@ type LineRect = { top: number; left: number; width: number; height: number; colo
 
 type ToolbarRect = { top: number; left: number; width: number }
 
+type ClusteredLine = {
+  lineTop: number
+  lineBottom: number
+  minLeft: number
+  maxRight: number
+}
+
+function isValidRect(rect: DOMRect): boolean {
+  return Number.isFinite(rect.top) && Number.isFinite(rect.bottom) && rect.width > 0 && rect.height > 0
+}
+
+function clusterRectsByVerticalOverlap(rects: DOMRect[], tolerance = 2): ClusteredLine[] {
+  const lines: ClusteredLine[] = []
+  const sortedRects = rects
+    .filter(isValidRect)
+    .slice()
+    .sort((a, b) => a.top - b.top)
+
+  sortedRects.forEach((rect) => {
+    const existingLine = lines.find(
+      (line) => rect.top <= line.lineBottom + tolerance && rect.bottom >= line.lineTop - tolerance
+    )
+    if (existingLine) {
+      existingLine.lineTop = Math.min(existingLine.lineTop, rect.top)
+      existingLine.lineBottom = Math.max(existingLine.lineBottom, rect.bottom)
+      existingLine.minLeft = Math.min(existingLine.minLeft, rect.left)
+      existingLine.maxRight = Math.max(existingLine.maxRight, rect.right)
+      return
+    }
+
+    lines.push({
+      lineTop: rect.top,
+      lineBottom: rect.bottom,
+      minLeft: rect.left,
+      maxRight: rect.right,
+    })
+  })
+
+  return lines.sort((a, b) => a.lineTop - b.lineTop)
+}
+
 function ReviewEditingOverlay({
   editingSuggestionId,
   showToolbar,
@@ -263,32 +304,24 @@ function ReviewEditingOverlay({
     const containerRect = container.getBoundingClientRect()
     const containerWidth = container.clientWidth
     const containerHeight = container.scrollHeight
-    const nodeRects = Array.from(nodes).map((el) => (el as HTMLElement).getBoundingClientRect())
+    const nodeRects = Array.from(nodes).flatMap((el) => Array.from((el as HTMLElement).getClientRects())).filter(isValidRect)
+    if (nodeRects.length === 0) {
+      setLineRects([])
+      setStyle1TopBottom(null)
+      setToolbarRect(null)
+      return
+    }
     /* Тулбар плавает у конца нижней линии — где заканчивается зачёркнутая строка рецензии */
     const deletionNodes = container.querySelectorAll(
       `[data-suggestion-id="${editingSuggestionId}"][data-review-type="deletion"]`
     )
-    const lineTol = 14
     let endBottomLineBottom: number
-    const deletionByLine = new Map<number, { right: number; bottom: number }>()
-    deletionNodes.forEach((el) => {
-      const r = (el as HTMLElement).getBoundingClientRect()
-      const key = Math.round(r.top / lineTol) * lineTol
-      const cur = deletionByLine.get(key)
-      if (!cur) {
-        deletionByLine.set(key, { right: r.right, bottom: r.bottom })
-      } else {
-        cur.right = Math.max(cur.right, r.right)
-        cur.bottom = Math.max(cur.bottom, r.bottom)
-      }
-    })
-    const deletionEntries = Array.from(deletionByLine.entries())
-    const lastDeletionEntry = deletionEntries.reduce<[number, { right: number; bottom: number }]>(
-      (best, [key, data]) => (data.bottom > best[1].bottom ? [key, data] : best),
-      deletionEntries[0] ?? [0, { right: -Infinity, bottom: -Infinity }]
-    )
-    if (lastDeletionEntry[1].bottom > -Infinity) {
-      endBottomLineBottom = lastDeletionEntry[1].bottom
+    const deletionRects = Array.from(deletionNodes)
+      .flatMap((el) => Array.from((el as HTMLElement).getClientRects()))
+      .filter(isValidRect)
+    const deletionLines = clusterRectsByVerticalOverlap(deletionRects, 2)
+    if (deletionLines.length > 0) {
+      endBottomLineBottom = Math.max(...deletionLines.map((line) => line.lineBottom))
     } else {
       endBottomLineBottom = Math.max(...nodeRects.map((r) => r.bottom))
     }
@@ -305,45 +338,35 @@ function ReviewEditingOverlay({
     })
 
     if (useVerticalLines) {
-      const lineTolerance = 2
       const allNodes = container.querySelectorAll(`[data-suggestion-id="${editingSuggestionId}"]`)
       const deletionNodes = container.querySelectorAll(
         `[data-suggestion-id="${editingSuggestionId}"][data-review-type="deletion"]`
       )
-      const byLineAll = new Map<
-        number,
-        { minLeft: number; maxRight: number; minTop: number; maxBottom: number }
-      >()
-      Array.from(allNodes).forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect()
-        const lineKey = Math.round(r.top / lineTolerance) * lineTolerance
-        const cur = byLineAll.get(lineKey)
-        if (!cur) {
-          byLineAll.set(lineKey, { minLeft: r.left, maxRight: r.right, minTop: r.top, maxBottom: r.bottom })
-        } else {
-          cur.minLeft = Math.min(cur.minLeft, r.left)
-          cur.maxRight = Math.max(cur.maxRight, r.right)
-          cur.minTop = Math.min(cur.minTop, r.top)
-          cur.maxBottom = Math.max(cur.maxBottom, r.bottom)
-        }
-      })
-      const byLineDeletion = new Map<number, number>()
-      deletionNodes.forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect()
-        const lineKey = Math.round(r.top / lineTolerance) * lineTolerance
-        const prev = byLineDeletion.get(lineKey)
-        byLineDeletion.set(lineKey, prev == null ? r.right : Math.max(prev, r.right))
-      })
+      const allRects = Array.from(allNodes)
+        .flatMap((el) => Array.from((el as HTMLElement).getClientRects()))
+        .filter(isValidRect)
+      const deletionRects = Array.from(deletionNodes)
+        .flatMap((el) => Array.from((el as HTMLElement).getClientRects()))
+        .filter(isValidRect)
+      const allLines = clusterRectsByVerticalOverlap(allRects, 2)
+      const deletionLines = clusterRectsByVerticalOverlap(deletionRects, 2)
       const rects: LineRect[] = []
-      byLineAll.forEach((cur, lineKey) => {
-        const deletionRight = byLineDeletion.get(lineKey)
-        const rightEdge = deletionRight != null ? deletionRight : cur.maxRight
-        let top = cur.minTop - containerRect.top
-        let left = cur.minLeft - containerRect.left
-        let width = rightEdge - cur.minLeft
-        let height = cur.maxBottom - cur.minTop
+      allLines.forEach((line) => {
+        const deletionRight = deletionLines
+          .filter(
+            (deletionLine) => deletionLine.lineTop <= line.lineBottom + 2 && deletionLine.lineBottom >= line.lineTop - 2
+          )
+          .reduce<number | null>((maxRight, deletionLine) => {
+            if (maxRight == null) return deletionLine.maxRight
+            return Math.max(maxRight, deletionLine.maxRight)
+          }, null)
+        const rightEdge = deletionRight ?? line.maxRight
+        let top = line.lineTop - containerRect.top
+        let left = line.minLeft - containerRect.left
+        let width = rightEdge - line.minLeft
+        let height = line.lineBottom - line.lineTop
         left = Math.max(0, left)
-        width = Math.min(width, containerWidth - left)
+        width = Math.min(width, Math.max(0, containerWidth - left))
         if (width < 0) width = 0
         top = Math.max(0, top)
         height = Math.min(height, containerHeight - top)
@@ -371,31 +394,7 @@ function ReviewEditingOverlay({
        * Верхняя линия: первая строка (minLeft..maxRight первой строки, включая зачёркнутый текст).
        * Нижняя линия: последняя строка (minLeft рецензии..maxRight зачёркнутого на последней строке).
        * Учитываются переносы: одна линия сверху над первой строкой, одна снизу под последней. */
-      const lineTolerance = 3
-      const byLine: Array<{ top: number; bottom: number; minLeft: number; maxRight: number }> = []
-      const lineKeys = new Set<number>()
-      nodeRects.forEach((r) => {
-        const key = Math.round(r.top / lineTolerance) * lineTolerance
-        lineKeys.add(key)
-      })
-      const sortedKeys = Array.from(lineKeys).sort((a, b) => a - b)
-      sortedKeys.forEach((key) => {
-        let minLeft = Infinity,
-          maxRight = -Infinity,
-          minTop = Infinity,
-          maxBottom = -Infinity
-        nodeRects.forEach((r) => {
-          const rKey = Math.round(r.top / lineTolerance) * lineTolerance
-          if (rKey !== key) return
-          minLeft = Math.min(minLeft, r.left)
-          maxRight = Math.max(maxRight, r.right)
-          minTop = Math.min(minTop, r.top)
-          maxBottom = Math.max(maxBottom, r.bottom)
-        })
-        if (minLeft !== Infinity)
-          byLine.push({ top: minTop, bottom: maxBottom, minLeft, maxRight })
-      })
-      byLine.sort((a, b) => a.top - b.top)
+      const byLine = clusterRectsByVerticalOverlap(nodeRects, 2)
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
@@ -406,11 +405,11 @@ function ReviewEditingOverlay({
         return
       }
       const first = byLine[0]
-      const firstLineTop = first.top
-      const firstLineBottom = first.bottom
-      const lastLineInfo = byLine.reduce((a, b) => (a.bottom > b.bottom ? a : b))
-      const lastLineTop = lastLineInfo.top
-      const lastLineBottom = lastLineInfo.bottom
+      const firstLineTop = first.lineTop
+      const firstLineBottom = first.lineBottom
+      const lastLineInfo = byLine.reduce((a, b) => (a.lineBottom > b.lineBottom ? a : b))
+      const lastLineTop = lastLineInfo.lineTop
+      const lastLineBottom = lastLineInfo.lineBottom
       const lineOverlapTolerance = 1
 
       function rectsOnLine(el: Element, lineTop: number, lineBottom: number): DOMRect[] {
@@ -453,12 +452,12 @@ function ReviewEditingOverlay({
       let lastMaxRight = lastMaxRightFromDeletion > -Infinity ? lastMaxRightFromDeletion : lastMaxRightFromAll
       if (lastMinLeft === Infinity) lastMinLeft = lastLineInfo.minLeft
       if (lastMaxRight === -Infinity) lastMaxRight = lastLineInfo.maxRight
-      const topLineTop = Math.max(0, first.top - containerRect.top - lineGap)
+      const topLineTop = Math.max(0, first.lineTop - containerRect.top - lineGap)
       const topLeft = Math.max(0, firstMinLeft - containerRect.left)
       const bottomLineTop = lastLineBottom - containerRect.top + lineGap
       const bottomLeft = Math.max(0, lastMinLeft - containerRect.left)
-      const topW = Math.max(0, Math.min(firstMaxRight - firstMinLeft, containerWidth - topLeft))
-      const bottomW = Math.max(0, Math.min(lastMaxRight - lastMinLeft, containerWidth - bottomLeft))
+      const topW = Math.max(0, Math.min(firstMaxRight - firstMinLeft, Math.max(0, containerWidth - topLeft)))
+      const bottomW = Math.max(0, Math.min(lastMaxRight - lastMinLeft, Math.max(0, containerWidth - bottomLeft)))
       if (topW <= 0 && bottomW <= 0) {
         setStyle1TopBottom(null)
       } else {
