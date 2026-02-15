@@ -2,18 +2,18 @@
 
 :root {
   /* Material 3 (latest) aligned design tokens */
-  --color-bg-page: #eaf6ff;
+  --color-bg-page: #f3f4f6;
   --color-bg-canvas: #ffffff;
-  --color-border-canvas: #c8ddf0;
+  --color-border-canvas: #d6d9de;
   --color-text: #1d1b20;
   --color-text-muted: #49454f;
-  --color-accent: #2f7fc1;
-  --color-accent-hover: #266ba4;
-  --color-header-bg: #eaf6ff;
-  --color-ribbon-bg: #eaf6ff;
-  --color-toolbar-group-bg: #dceefe;
-  --color-selection: rgba(47, 127, 193, 0.28);
-  --color-cursor: #2f7fc1;
+  --color-accent: #6b7280;
+  --color-accent-hover: #4b5563;
+  --color-header-bg: #f3f4f6;
+  --color-ribbon-bg: #f3f4f6;
+  --color-toolbar-group-bg: #e5e7eb;
+  --color-selection: rgba(107, 114, 128, 0.28);
+  --color-cursor: #6b7280;
   --font-family: Roboto, Arial, sans-serif;
   --font-size-default: 11pt;
   --cursor-width: 2px;
@@ -24,7 +24,7 @@
   --shape-corner-xlarge: 28px;
   --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 3px 1px rgba(0, 0, 0, 0.1);
   --shadow-document: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
-  --review-style1-line: #7f9cb8;
+  --review-style1-line: #9ca3af;
   --review-strikethrough-color: #b3261e;
   --review-strikethrough-thickness: 2px;
 }
@@ -114,7 +114,7 @@ html, body {
   max-height: calc(100% - 48px);
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-bg-page);
+  background: transparent;
 }
 
 .review-comments-sidebar-inner {
@@ -337,7 +337,7 @@ html, body {
 
 .ribbon button:hover,
 .ribbon select:hover {
-  background: #cfe7fb !important;
+  background: #e5e7eb !important;
 }
 
 .ribbon input[type="color"] {
@@ -380,7 +380,7 @@ html, body {
 
 .ribbon-dropdown-item:hover,
 .ribbon-dropdown-item.is-active {
-  background: #cfe7fb;
+  background: #e5e7eb;
 }
 
 .slate-editor-wrap {
