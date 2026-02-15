@@ -1,23 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
 :root {
-  --color-bg-page: #ffffff;
+  /* Material 3 (latest) aligned design tokens */
+  --color-bg-page: #eaf6ff;
   --color-bg-canvas: #ffffff;
-  --color-border-canvas: #d0d0d0;
-  --color-text: #333333;
-  --color-text-muted: #666;
-  --color-accent: #5ba3d0;
-  --color-accent-hover: #4a8fbc;
-  --color-header-bg: #ffffff;
-  --color-ribbon-bg: #ffffff;
-  --color-toolbar-group-bg: #ececec;
-  --color-selection: rgba(100, 180, 255, 0.35);
-  --color-cursor: #5ba3d0;
-  --font-family: Arial, sans-serif;
+  --color-border-canvas: #c8ddf0;
+  --color-text: #1d1b20;
+  --color-text-muted: #49454f;
+  --color-accent: #2f7fc1;
+  --color-accent-hover: #266ba4;
+  --color-header-bg: #eaf6ff;
+  --color-ribbon-bg: #eaf6ff;
+  --color-toolbar-group-bg: #dceefe;
+  --color-selection: rgba(47, 127, 193, 0.28);
+  --color-cursor: #2f7fc1;
+  --font-family: Roboto, Arial, sans-serif;
   --font-size-default: 11pt;
   --cursor-width: 2px;
-  --cursor-radius: 1px;
-  --shadow-document: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --review-style1-line: #b0b0b0;
-  --review-strikethrough-color: #FF5151;
+  --cursor-radius: 2px;
+  --shape-corner-small: 8px;
+  --shape-corner-medium: 12px;
+  --shape-corner-large: 16px;
+  --shape-corner-xlarge: 28px;
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 3px 1px rgba(0, 0, 0, 0.1);
+  --shadow-document: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+  --review-style1-line: #7f9cb8;
+  --review-strikethrough-color: #b3261e;
   --review-strikethrough-thickness: 2px;
 }
 
@@ -61,6 +69,7 @@ html, body {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
+  border-bottom: 1px solid var(--color-border-canvas);
 }
 
 .app-header-title {
@@ -84,6 +93,7 @@ html, body {
   gap: 12px;
   padding: 24px;
   min-height: 0;
+  background: #ffffff;
 }
 
 .canvas-wrapper {
@@ -92,6 +102,7 @@ html, body {
   justify-content: center;
   padding: 24px 0;
   min-height: 0;
+  background: #ffffff;
 }
 
 .review-comments-sidebar {
@@ -134,7 +145,7 @@ html, body {
   width: 100%;
   padding: 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--shape-corner-medium);
   background: #F0F0F0;
   text-align: left;
   font-family: var(--font-family);
@@ -270,7 +281,7 @@ html, body {
   padding: 8px 10px;
   margin-top: 8px;
   border: 1px solid var(--color-border-canvas);
-  border-radius: 8px;
+  border-radius: var(--shape-corner-medium);
   font-family: var(--font-family);
   font-size: 13px;
   outline: none;
@@ -287,6 +298,7 @@ html, body {
   overflow-x: hidden;
   background: #ffffff;
   border: 1px solid var(--color-border-canvas);
+  border-radius: 0;
   box-shadow: var(--shadow-document);
   padding: 72px 96px;
   font-family: var(--font-family);
@@ -298,9 +310,10 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 8px 12px;
   background: var(--color-ribbon-bg);
+  border-bottom: 1px solid var(--color-border-canvas);
 }
 
 .ribbon-group {
@@ -309,8 +322,8 @@ html, body {
   gap: 4px;
   padding: 4px;
   min-height: 42px;
-  border-radius: 16px;
-  background: #EAF0F5;
+  border-radius: var(--shape-corner-large);
+  background: var(--color-toolbar-group-bg);
   border: none;
 }
 
@@ -318,13 +331,13 @@ html, body {
 .ribbon select {
   min-width: 34px;
   min-height: 34px;
-  border-radius: 12px;
+  border-radius: var(--shape-corner-medium);
   box-sizing: border-box;
 }
 
 .ribbon button:hover,
 .ribbon select:hover {
-  background: #e8e8e8 !important;
+  background: #cfe7fb !important;
 }
 
 .ribbon input[type="color"] {
@@ -346,7 +359,7 @@ html, body {
   list-style: none;
   background: var(--color-bg-canvas);
   border: 1px solid var(--color-border-canvas);
-  border-radius: 12px;
+  border-radius: var(--shape-corner-medium);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 2;
 }
@@ -356,7 +369,7 @@ html, body {
   width: 100%;
   padding: 6px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--shape-corner-medium);
   background: transparent;
   cursor: pointer;
   font-size: 12px;
@@ -367,7 +380,7 @@ html, body {
 
 .ribbon-dropdown-item:hover,
 .ribbon-dropdown-item.is-active {
-  background: #e8e8e8;
+  background: #cfe7fb;
 }
 
 .slate-editor-wrap {
