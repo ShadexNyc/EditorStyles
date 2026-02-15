@@ -8,12 +8,13 @@ import type { DocumentRecord } from './db'
 const SAVE_DEBOUNCE_MS = 1500
 
 export function useDocumentStorage(initialContent: Descendant[]) {
-  const [content, setContent] = useState<Descendant[] | null>(null)
+  const defaultUserId = DEFAULT_USERS[0]?.id
+  const [content, setContent] = useState<Descendant[]>(initialContent)
   const [users, setUsersState] = useState<User[]>(DEFAULT_USERS)
-  const [currentUserId, setCurrentUserIdState] = useState<string | undefined>(undefined)
-  const initialRef = useRef<Descendant[] | null>(null)
+  const [currentUserId, setCurrentUserIdState] = useState<string | undefined>(defaultUserId)
+  const initialRef = useRef<Descendant[]>(initialContent)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const currentUserIdRef = useRef<string | undefined>(undefined)
+  const currentUserIdRef = useRef<string | undefined>(defaultUserId)
   const contentRef = useRef<Descendant[]>(initialContent)
   const usersRef = useRef<User[]>(DEFAULT_USERS)
   usersRef.current = users
@@ -125,8 +126,8 @@ export function useDocumentStorage(initialContent: Descendant[]) {
     [save]
   )
 
-  const loaded = content !== null
-  const initialValue = initialRef.current ?? initialContent
+  const loaded = true
+  const initialValue = initialRef.current
 
   return {
     loaded,
