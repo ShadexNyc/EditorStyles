@@ -2,18 +2,18 @@
 
 :root {
   /* Material 3 (latest) aligned design tokens */
-  --color-bg-page: #fef7ff;
+  --color-bg-page: #eaf6ff;
   --color-bg-canvas: #ffffff;
-  --color-border-canvas: #e7e0ec;
+  --color-border-canvas: #c8ddf0;
   --color-text: #1d1b20;
   --color-text-muted: #49454f;
-  --color-accent: #6750a4;
-  --color-accent-hover: #5b4695;
-  --color-header-bg: #fffbfe;
-  --color-ribbon-bg: #fffbfe;
-  --color-toolbar-group-bg: #ece6f0;
-  --color-selection: rgba(103, 80, 164, 0.24);
-  --color-cursor: #6750a4;
+  --color-accent: #2f7fc1;
+  --color-accent-hover: #266ba4;
+  --color-header-bg: #eaf6ff;
+  --color-ribbon-bg: #eaf6ff;
+  --color-toolbar-group-bg: #dceefe;
+  --color-selection: rgba(47, 127, 193, 0.28);
+  --color-cursor: #2f7fc1;
   --font-family: Roboto, Arial, sans-serif;
   --font-size-default: 11pt;
   --cursor-width: 2px;
@@ -24,7 +24,7 @@
   --shape-corner-xlarge: 28px;
   --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 3px 1px rgba(0, 0, 0, 0.1);
   --shadow-document: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
-  --review-style1-line: #938f99;
+  --review-style1-line: #7f9cb8;
   --review-strikethrough-color: #b3261e;
   --review-strikethrough-thickness: 2px;
 }
@@ -93,6 +93,7 @@ html, body {
   gap: 12px;
   padding: 24px;
   min-height: 0;
+  background: #ffffff;
 }
 
 .canvas-wrapper {
@@ -101,6 +102,7 @@ html, body {
   justify-content: center;
   padding: 24px 0;
   min-height: 0;
+  background: #ffffff;
 }
 
 .review-comments-sidebar {
@@ -296,7 +298,7 @@ html, body {
   overflow-x: hidden;
   background: #ffffff;
   border: 1px solid var(--color-border-canvas);
-  border-radius: var(--shape-corner-large);
+  border-radius: 0;
   box-shadow: var(--shadow-document);
   padding: 72px 96px;
   font-family: var(--font-family);
@@ -335,7 +337,7 @@ html, body {
 
 .ribbon button:hover,
 .ribbon select:hover {
-  background: #e8def8 !important;
+  background: #cfe7fb !important;
 }
 
 .ribbon input[type="color"] {
@@ -378,7 +380,7 @@ html, body {
 
 .ribbon-dropdown-item:hover,
 .ribbon-dropdown-item.is-active {
-  background: #e8def8;
+  background: #cfe7fb;
 }
 
 .slate-editor-wrap {
