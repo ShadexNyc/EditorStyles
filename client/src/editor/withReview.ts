@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react'
-import type { Editor } from 'slate'
+import type { Editor, Point, Range as SlateRange } from 'slate'
 import { Editor as SlateEditor, Element, Path, Range, Transforms } from 'slate'
 import { Text } from 'slate'
 import type { Descendant } from 'slate'
@@ -8,6 +8,26 @@ import type { ReviewPluginRef } from '../services/review/ReviewContext'
 
 function generateSuggestionId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+function getSuggestionAuthorMeta(pluginRef: ReviewPluginRef | null): Pick<FormattedText, 'authorId' | 'authorColor'> {
+  const userId = pluginRef?.getCurrentUserId()
+  const userColor = userId ? pluginRef?.getUserColor(userId) : undefined
+  return {
+    authorId: userId,
+    authorColor: userColor,
+  }
+}
+
+function isPointWithinDeletion(editor: Editor, point: Point): boolean {
+  try {
+    const [node] = SlateEditor.node(editor, point)
+    if (!Text.isText(node)) return false
+    const t = node as FormattedText
+    return !!(t.suggestionDeletion || t.reviewDelete)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -25,6 +45,12 @@ function isCaretWithinInsertion(editor: Editor): boolean {
   } catch {
     return false
   }
+}
+
+function isCaretWithinDeletion(editor: Editor): boolean {
+  const selection = editor.selection
+  if (!selection || !Range.isCollapsed(selection)) return false
+  return isPointWithinDeletion(editor, selection.anchor)
 }
 
 /** Выбор целиком внутри зачёркнутого текста одной рецензии — возвращаем её suggestionId, чтобы вставить новую правку после неё. */
@@ -75,11 +101,30 @@ function getPointAfterLastNodeOfSuggestionInBlock(
   return { path: lastPath, offset }
 }
 
+function markDeletionRange(editor: Editor, range: SlateRange, pluginRef: ReviewPluginRef | null): void {
+  const { authorId, authorColor } = getSuggestionAuthorMeta(pluginRef)
+  const suggestionId = generateSuggestionId()
+  Transforms.setNodes(
+    editor,
+    {
+      suggestionDeletion: true,
+      suggestionId,
+      authorId,
+      authorColor,
+    } as Record<string, unknown>,
+    {
+      at: range,
+      match: (n) => Text.isText(n),
+      split: true,
+    }
+  )
+}
+
 export function withReview<T extends Editor>(
   editor: T,
   pluginRef: MutableRefObject<ReviewPluginRef | null>
 ): T {
-  const { insertText } = editor
+  const { insertText, deleteBackward, deleteForward, deleteFragment } = editor
 
   editor.insertText = (text: string) => {
     const ref = pluginRef.current
@@ -98,17 +143,29 @@ export function withReview<T extends Editor>(
       insertText(text)
       return
     }
-    // Свёрнутый выбор (курсор) — обычный ввод
+    // Внутри удалённой рецензии ввод текста запрещён.
+    if (isCaretWithinDeletion(editor)) {
+      return
+    }
+    // Свёрнутый выбор (курсор) — новая вставка в режиме рецензирования.
     if (Range.isCollapsed(selection)) {
-      insertText(text)
+      const { authorId, authorColor } = getSuggestionAuthorMeta(ref)
+      const insertNode: FormattedText = {
+        ...(SlateEditor.marks(editor) ?? {}),
+        text,
+        suggestionInsertion: true,
+        suggestionId: generateSuggestionId(),
+        authorId,
+        authorColor,
+      }
+      Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown })
       return
     }
     // Несвёрнутое выделение: создаём новую правку. Чтобы правки не перемешивались:
     // — если выделение целиком внутри зачёркнутого одной правки: удаляем выделенный фрагмент,
     //   вставляем новую правку (вставка + зачёркнутое) после конца той правки в том же блоке;
     // — иначе: вставка сразу перед зачёркиванием (at = start selection).
-    const userId = ref.getCurrentUserId()
-    const userColor = userId ? ref.getUserColor(userId) : undefined
+    const { authorId, authorColor } = getSuggestionAuthorMeta(ref)
     const suggestionId = generateSuggestionId()
     const parentDeletionId = getSelectionEntirelyWithinDeletionSuggestionId(editor)
 
@@ -130,8 +187,8 @@ export function withReview<T extends Editor>(
             ...(highlight && { highlight }),
             suggestionDeletion: true,
             suggestionId,
-            authorId: userId,
-            authorColor: userColor,
+            authorId,
+            authorColor,
           } as FormattedText
         })
         Transforms.delete(editor, { at: selection })
@@ -141,8 +198,8 @@ export function withReview<T extends Editor>(
           text,
           suggestionInsertion: true,
           suggestionId,
-          authorId: userId,
-          authorColor: userColor,
+          authorId,
+          authorColor,
         }
         Transforms.insertNodes(editor, [insertNode, ...deletionNodes] as { text: string; [k: string]: unknown }[], {
           at: insertAt,
@@ -156,8 +213,8 @@ export function withReview<T extends Editor>(
           {
             suggestionDeletion: true,
             suggestionId,
-            authorId: userId,
-            authorColor: userColor,
+            authorId,
+            authorColor,
           } as Record<string, unknown>,
           {
             at: selection,
@@ -171,14 +228,84 @@ export function withReview<T extends Editor>(
             text,
             suggestionInsertion: true,
             suggestionId,
-            authorId: userId,
-            authorColor: userColor,
+            authorId,
+            authorColor,
           }
           Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown }, { at })
           Transforms.select(editor, { path: at.path, offset: at.offset + text.length })
         }
       }
     })
+  }
+
+  editor.deleteFragment = (options) => {
+    const ref = pluginRef.current
+    const selection = editor.selection
+    if (!ref || !ref.getReviewMode() || !selection || Range.isCollapsed(selection)) {
+      deleteFragment(options)
+      return
+    }
+    // Внутри удалённой рецензии изменение не допускаем.
+    if (isPointWithinDeletion(editor, selection.anchor) || isPointWithinDeletion(editor, selection.focus)) {
+      return
+    }
+    markDeletionRange(editor, selection, ref)
+    const collapsePoint = Range.start(selection)
+    Transforms.select(editor, collapsePoint)
+  }
+
+  editor.deleteBackward = (unit) => {
+    const ref = pluginRef.current
+    const selection = editor.selection
+    if (!ref || !ref.getReviewMode() || !selection) {
+      deleteBackward(unit)
+      return
+    }
+
+    if (!Range.isCollapsed(selection)) {
+      editor.deleteFragment()
+      return
+    }
+
+    if (isCaretWithinDeletion(editor)) return
+    if (isCaretWithinInsertion(editor)) {
+      deleteBackward(unit)
+      return
+    }
+
+    const before = SlateEditor.before(editor, selection.anchor, { unit })
+    if (!before) return
+    if (isPointWithinDeletion(editor, before)) return
+
+    markDeletionRange(editor, { anchor: before, focus: selection.anchor }, ref)
+    Transforms.select(editor, before)
+  }
+
+  editor.deleteForward = (unit) => {
+    const ref = pluginRef.current
+    const selection = editor.selection
+    if (!ref || !ref.getReviewMode() || !selection) {
+      deleteForward(unit)
+      return
+    }
+
+    if (!Range.isCollapsed(selection)) {
+      editor.deleteFragment()
+      return
+    }
+
+    if (isCaretWithinDeletion(editor)) return
+    if (isCaretWithinInsertion(editor)) {
+      deleteForward(unit)
+      return
+    }
+
+    const after = SlateEditor.after(editor, selection.anchor, { unit })
+    if (!after) return
+    if (isPointWithinDeletion(editor, after)) return
+
+    markDeletionRange(editor, { anchor: selection.anchor, focus: after }, ref)
+    Transforms.select(editor, selection.anchor)
   }
 
   return editor

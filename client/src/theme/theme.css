@@ -405,14 +405,11 @@ html, body {
   text-decoration-thickness: 2px !important;
 }
 
-/* Когда вышли из редактирования — цвет зачёркнутого текста чёрный */
+/* Базовый стиль удалённого текста в неактивной рецензии: серый текст, серая зачёркивающая линия и серая подложка. */
 .review-deletion:not(.review-deletion-editing) {
-  color: #000 !important;
-}
-
-/* Зачёркнутый текст (удаление) всегда с красным фоном, в т.ч. у вложенной рецензии — !important перебивает любые инлайны */
-.review-deletion {
-  background-color: rgba(255, 0, 0, 0.1) !important;
+  color: #6b7280 !important;
+  text-decoration-color: #9ca3af !important;
+  background-color: rgba(156, 163, 175, 0.2) !important;
 }
 
 /* Кнопка «Принять» в комментариях: подсветка зелёным только предложенного текста (вставки), зачёркнутый не подсвечиваем */
@@ -480,6 +477,38 @@ html, body {
   color: #000 !important;
 }
 
+
+/* Стиль 9: копия стиля 4 + при редактировании рецензии остальной текст бледнеет до 20% */
+[data-review-style="style-9"] .review-deletion,
+[data-review-style="style-9"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-9"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-9"] .review-strikethrough,
+[data-review-style="style-9"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-9"] .review-deletion.review-deletion-editing {
+  color: #000 !important;
+}
+
+[data-review-style="style-9"] .review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
+[data-review-style="style-9"].review-editing-dimmed .slate-editor-content .review-leaf {
+  opacity: 0.2;
+}
+
+[data-review-style="style-9"].review-editing-dimmed .slate-editor-content .review-leaf.review-editing-active {
+  opacity: 1;
+}
+
 /* Стиль 8: копия стиля 4, но при редактировании у зачёркнутого текста нет красного фона */
 [data-review-style="style-8"] .review-deletion,
 [data-review-style="style-8"] .review-insertion {
@@ -542,6 +571,13 @@ html, body {
 
 [data-review-style="style-6"] .review-deletion:not(.review-deletion-editing) {
   color: var(--review-strikethrough-color) !important;
+}
+
+/* Единый вид удалённого текста вне редактирования для всех стилей рецензирования. */
+.slate-editor-wrap [data-review-type="deletion"].review-deletion:not(.review-deletion-editing) {
+  color: #6b7280 !important;
+  text-decoration-color: #9ca3af !important;
+  background-color: rgba(156, 163, 175, 0.2) !important;
 }
 
 /* Тулбар рецензии: ховер кнопок серый, иконки чёрные */
