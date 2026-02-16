@@ -92,6 +92,17 @@ function markRangeAsDeletion(
   )
 }
 
+
+function markSelectionAsDeletion(
+  editor: Editor,
+  suggestionId: string,
+  userId?: string,
+  userColor?: string
+): void {
+  if (!editor.selection || Range.isCollapsed(editor.selection)) return
+  markRangeAsDeletion(editor, editor.selection, suggestionId, userId, userColor)
+}
+
 function insertInsertionAtPoint(
   editor: Editor,
   at: Point,
@@ -109,8 +120,11 @@ function insertInsertionAtPoint(
     authorId: userId,
     authorColor: userColor,
   }
+  const pointRef = SlateEditor.pointRef(editor, at)
   Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown }, { at })
-  Transforms.select(editor, { path: at.path, offset: at.offset + text.length })
+  const insertedPoint = pointRef.unref()
+  if (!insertedPoint) return
+  Transforms.select(editor, { path: insertedPoint.path, offset: insertedPoint.offset + text.length })
 }
 
 function createReplacementSuggestion(editor: Editor, text: string, userId?: string, userColor?: string): boolean {
@@ -218,7 +232,7 @@ export function withReview<T extends Editor>(
     }
     const suggestionId = generateSuggestionId()
     SlateEditor.withoutNormalizing(editor, () => {
-      markRangeAsDeletion(editor, selection, suggestionId, rt.userId, rt.userColor)
+      markSelectionAsDeletion(editor, suggestionId, rt.userId, rt.userColor)
       Transforms.collapse(editor, { edge: 'start' })
     })
   }
