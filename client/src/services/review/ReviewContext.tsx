@@ -5,6 +5,8 @@ export interface ReviewHighlightStyle {
   name: string
 }
 
+export type ReviewEditMode = 'replace' | 'delete' | 'insert'
+
 export const REVIEW_HIGHLIGHT_STYLES: ReviewHighlightStyle[] = [
   { id: 'style-1', name: 'Стиль 1' },
   { id: 'style-2', name: 'Стиль 2' },
@@ -13,6 +15,7 @@ export const REVIEW_HIGHLIGHT_STYLES: ReviewHighlightStyle[] = [
   { id: 'style-5', name: 'Стиль 5' },
   { id: 'style-6', name: 'Стиль 6' },
   { id: 'style-7', name: 'Стиль 7' },
+  { id: 'style-9', name: 'Стиль 9' },
 ]
 
 export interface ReviewContextValue {
@@ -21,6 +24,8 @@ export interface ReviewContextValue {
   reviewHighlightStyles: ReviewHighlightStyle[]
   currentReviewStyleId: string
   setCurrentReviewStyleId: (id: string) => void
+  reviewEditMode: ReviewEditMode
+  setReviewEditMode: (mode: ReviewEditMode) => void
 }
 
 export const ReviewContext = createContext<ReviewContextValue>({
@@ -29,11 +34,14 @@ export const ReviewContext = createContext<ReviewContextValue>({
   reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
   currentReviewStyleId: 'style-1',
   setCurrentReviewStyleId: () => {},
+  reviewEditMode: 'replace',
+  setReviewEditMode: () => {},
 })
 
 export function ReviewProvider({ children }: { children: ReactNode }) {
   const [reviewMode, setReviewMode] = useState(false)
   const [currentReviewStyleId, setCurrentReviewStyleId] = useState('style-1')
+  const [reviewEditMode, setReviewEditMode] = useState<ReviewEditMode>('replace')
   return (
     <ReviewContext.Provider
       value={{
@@ -42,6 +50,8 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
         reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
         currentReviewStyleId,
         setCurrentReviewStyleId,
+        reviewEditMode,
+        setReviewEditMode,
       }}
     >
       {children}
@@ -51,6 +61,7 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
 
 export interface ReviewPluginRef {
   getReviewMode: () => boolean
+  getReviewEditMode: () => ReviewEditMode
   getCurrentUserId: () => string | undefined
   getUserColor: (userId: string) => string
 }

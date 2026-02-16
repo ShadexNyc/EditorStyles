@@ -18,13 +18,26 @@ const activeBtn = {
   color: '#fff',
 }
 
+const modeBtn = {
+  ...ribbonBtn,
+  padding: '4px 8px',
+  fontSize: 11,
+  border: '1px solid #d5d5d5',
+}
+
+const modeBtnActive = {
+  ...modeBtn,
+  background: '#1f6feb',
+  color: '#fff',
+  border: '1px solid #1f6feb',
+}
+
 export function ReviewToggle() {
-  const { reviewMode, setReviewMode } = useReview()
+  const { reviewMode, setReviewMode, reviewEditMode, setReviewEditMode } = useReview()
   const editor = useSlate()
   const savedSelectionRef = useRef<Range | null>(null)
 
   const handleMouseDown = (_e: React.MouseEvent) => {
-    // Сохраняем выделение до того, как клик на кнопке приведёт к его потере
     if (!reviewMode && editor.selection && !Range.isCollapsed(editor.selection)) {
       savedSelectionRef.current = editor.selection
     } else {
@@ -36,20 +49,13 @@ export function ReviewToggle() {
     const newReviewMode = !reviewMode
     setReviewMode(newReviewMode)
 
-    // Если включаем режим рецензирования и было сохранено выделение текста,
-    // восстанавливаем его и фокусируем редактор, чтобы пользователь мог сразу начать печатать
     if (newReviewMode && savedSelectionRef.current) {
       const savedSelection = savedSelectionRef.current
-      
-      // Используем requestAnimationFrame для восстановления выделения и фокуса после обновления состояния
       requestAnimationFrame(() => {
-        // Восстанавливаем выделение
         try {
           Transforms.select(editor, savedSelection)
-          // Фокусируем редактор через ReactEditor API
           ReactEditor.focus(editor as ReactEditor)
         } catch (error) {
-          // Если выделение стало невалидным (например, текст был удалён), игнорируем ошибку
           console.debug('Could not restore selection:', error)
         }
         savedSelectionRef.current = null
@@ -58,14 +64,38 @@ export function ReviewToggle() {
   }
 
   return (
-    <button
-      type="button"
-      style={reviewMode ? activeBtn : ribbonBtn}
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
-      title="Режим рецензирования: выделите текст и введите правку"
-    >
-      Рецензирование
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button
+        type="button"
+        style={reviewMode ? activeBtn : ribbonBtn}
+        onMouseDown={handleMouseDown}
+        onClick={handleClick}
+        title="Режим рецензирования"
+      >
+        Рецензирование
+      </button>
+      {reviewMode && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            type="button"
+            style={reviewEditMode === 'delete' ? modeBtnActive : modeBtn}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setReviewEditMode('delete')}
+            title="Режим удаления: выделите текст и удалите"
+          >
+            Удаление
+          </button>
+          <button
+            type="button"
+            style={reviewEditMode === 'insert' ? modeBtnActive : modeBtn}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setReviewEditMode('insert')}
+            title="Режим добавления: печать создаёт предложение вставки"
+          >
+            Добавление
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
