@@ -576,6 +576,13 @@ html, body {
   color: var(--review-strikethrough-color) !important;
 }
 
+/* Обычное удаление текста (backspace/delete) в review mode: всегда серый зачёркнутый текст с серой подложкой. */
+.slate-editor-wrap [data-review-type="deletion"][data-review-deletion-kind="plain-delete"].review-deletion:not(.review-deletion-editing) {
+  color: #6b7280 !important;
+  text-decoration-color: #9ca3af !important;
+  background-color: rgba(156, 163, 175, 0.2) !important;
+}
+
 /* Тулбар рецензии: ховер кнопок серый, иконки чёрные */
 .review-toolbar .review-toolbar-btn:hover {
   background: #F2F2F2 !important;
