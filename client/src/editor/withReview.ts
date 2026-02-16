@@ -4,17 +4,13 @@ import { Editor as SlateEditor, Element, Path, Range, Transforms } from 'slate'
 import { Text } from 'slate'
 import type { Descendant } from 'slate'
 import type { FormattedText } from '../types/slate'
-import type { ReviewPluginRef } from '../services/review/ReviewContext'
+import type { ReviewEditMode, ReviewPluginRef } from '../services/review/ReviewContext'
 
 function generateSuggestionId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-/**
- * Курсор внутри текста вставки одной рецензии — обычный ввод продолжает текущую вставку.
- * Важно: только для collapsed selection. Любое выделение должно создавать новую рецензию.
- */
-function isCaretWithinInsertion(editor: Editor): boolean {
+function isSelectionEntirelyWithinInsertion(editor: Editor): boolean {
   const selection = editor.selection
   if (!selection || !Range.isCollapsed(selection)) return false
   try {
@@ -27,7 +23,6 @@ function isCaretWithinInsertion(editor: Editor): boolean {
   }
 }
 
-/** Выбор целиком внутри зачёркнутого текста одной рецензии — возвращаем её suggestionId, чтобы вставить новую правку после неё. */
 function getSelectionEntirelyWithinDeletionSuggestionId(editor: Editor): string | null {
   const selection = editor.selection
   if (!selection || Range.isCollapsed(selection)) return null
@@ -41,7 +36,6 @@ function getSelectionEntirelyWithinDeletionSuggestionId(editor: Editor): string 
   return suggestionId
 }
 
-/** Собирает все текстовые узлы из фрагмента (рекурсивно). */
 function collectTextNodesFromFragment(fragment: Descendant[]): FormattedText[] {
   const out: FormattedText[] = []
   for (const node of fragment) {
@@ -54,7 +48,6 @@ function collectTextNodesFromFragment(fragment: Descendant[]): FormattedText[] {
   return out
 }
 
-/** Точка сразу после последнего узла с данным suggestionId в заданном блоке. */
 function getPointAfterLastNodeOfSuggestionInBlock(
   editor: Editor,
   suggestionId: string,
@@ -75,110 +68,226 @@ function getPointAfterLastNodeOfSuggestionInBlock(
   return { path: lastPath, offset }
 }
 
+function buildDeletionNodes(fragment: Descendant[], suggestionId: string, userId?: string, userColor?: string): FormattedText[] {
+  const textNodes = collectTextNodesFromFragment(fragment)
+  return textNodes.map((node) => {
+    const { text: nodeText, bold, italic, underline, fontSize, color, highlight } = node
+    return {
+      text: nodeText,
+      ...(bold && { bold: true }),
+      ...(italic && { italic: true }),
+      ...(underline && { underline: true }),
+      ...(fontSize && { fontSize }),
+      ...(color && { color }),
+      ...(highlight && { highlight }),
+      suggestionDeletion: true,
+      suggestionMode: 'delete',
+      suggestionId,
+      authorId: userId,
+      authorColor: userColor,
+    } as FormattedText
+  })
+}
+
+function insertInsertionSuggestionAtSelection(editor: Editor, text: string, userId?: string, userColor?: string) {
+  const selection = editor.selection
+  if (!selection) return false
+  const suggestionId = generateSuggestionId()
+  const start = Range.start(selection)
+  const startRef = SlateEditor.pointRef(editor, start)
+  const insertNode: FormattedText = {
+    text,
+    suggestionInsertion: true,
+    suggestionMode: 'insert',
+    suggestionId,
+    authorId: userId,
+    authorColor: userColor,
+  }
+  Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown }, { at: start })
+  const at = startRef.unref()
+  if (at) {
+    Transforms.select(editor, { path: at.path, offset: at.offset + text.length })
+  }
+  return true
+}
+
+function markSelectionAsDeletion(editor: Editor, userId?: string, userColor?: string): boolean {
+  const selection = editor.selection
+  if (!selection || Range.isCollapsed(selection)) return false
+  const suggestionId = generateSuggestionId()
+  Transforms.setNodes(
+    editor,
+    {
+      suggestionDeletion: true,
+      suggestionMode: 'delete',
+      suggestionId,
+      authorId: userId,
+      authorColor: userColor,
+    } as Record<string, unknown>,
+    {
+      at: selection,
+      match: (n) => Text.isText(n),
+      split: true,
+    }
+  )
+  return true
+}
+
+function createReplacementSuggestion(editor: Editor, text: string, userId?: string, userColor?: string): boolean {
+  const selection = editor.selection
+  if (!selection || Range.isCollapsed(selection)) return false
+  const suggestionId = generateSuggestionId()
+  const parentDeletionId = getSelectionEntirelyWithinDeletionSuggestionId(editor)
+
+  if (parentDeletionId != null) {
+    const blockPath = selection.anchor.path.slice(0, -1)
+    const fragment = SlateEditor.fragment(editor, selection)
+    const deletionNodes = buildDeletionNodes(fragment, suggestionId, userId, userColor).map((n) => ({ ...n, suggestionMode: 'replace' as const }))
+    Transforms.delete(editor, { at: selection })
+    const after = getPointAfterLastNodeOfSuggestionInBlock(editor, parentDeletionId, blockPath)
+    const insertAt = after ?? { path: blockPath.concat(0), offset: 0 }
+    const insertNode: FormattedText = {
+      text,
+      suggestionInsertion: true,
+      suggestionMode: 'replace',
+      suggestionId,
+      authorId: userId,
+      authorColor: userColor,
+    }
+    Transforms.insertNodes(editor, [insertNode, ...deletionNodes] as { text: string; [k: string]: unknown }[], {
+      at: insertAt,
+    })
+    Transforms.select(editor, { path: insertAt.path, offset: insertAt.offset + text.length })
+    return true
+  }
+
+  const start = Range.start(selection)
+  const startRef = SlateEditor.pointRef(editor, start)
+  Transforms.setNodes(
+    editor,
+    {
+      suggestionDeletion: true,
+      suggestionMode: 'replace',
+      suggestionId,
+      authorId: userId,
+      authorColor: userColor,
+    } as Record<string, unknown>,
+    {
+      at: selection,
+      match: (n) => Text.isText(n),
+      split: true,
+    }
+  )
+  const at = startRef.unref()
+  if (at) {
+    const insertNode = {
+      text,
+      suggestionInsertion: true,
+      suggestionMode: 'replace',
+      suggestionId,
+      authorId: userId,
+      authorColor: userColor,
+    }
+    Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown }, { at })
+    Transforms.select(editor, { path: at.path, offset: at.offset + text.length })
+  }
+  return true
+}
+
 export function withReview<T extends Editor>(
   editor: T,
   pluginRef: MutableRefObject<ReviewPluginRef | null>
 ): T {
-  const { insertText } = editor
+  const { insertText, deleteFragment, deleteBackward, deleteForward } = editor
+
+  const getReviewRuntime = (): { enabled: boolean; mode: ReviewEditMode; userId?: string; userColor?: string } => {
+    const ref = pluginRef.current
+    if (!ref || !ref.getReviewMode()) {
+      return { enabled: false, mode: 'replace' }
+    }
+    const userId = ref.getCurrentUserId()
+    return {
+      enabled: true,
+      mode: ref.getReviewEditMode(),
+      userId,
+      userColor: userId ? ref.getUserColor(userId) : undefined,
+    }
+  }
 
   editor.insertText = (text: string) => {
-    const ref = pluginRef.current
-    if (!ref) {
-      insertText(text)
-      return
-    }
-    const reviewMode = ref.getReviewMode()
+    const rt = getReviewRuntime()
     const selection = editor.selection
-    if (!reviewMode || !selection) {
+    if (!rt.enabled || !selection) {
       insertText(text)
       return
     }
-    // Курсор внутри вставки существующей рецензии — продолжаем её без создания новой
-    if (isCaretWithinInsertion(editor)) {
+    if (isSelectionEntirelyWithinInsertion(editor)) {
       insertText(text)
       return
     }
-    // Свёрнутый выбор (курсор) — обычный ввод
+
+    if (rt.mode === 'insert') {
+      SlateEditor.withoutNormalizing(editor, () => {
+        insertInsertionSuggestionAtSelection(editor, text, rt.userId, rt.userColor)
+      })
+      return
+    }
+
+    if (rt.mode === 'delete') {
+      if (!Range.isCollapsed(selection)) {
+        SlateEditor.withoutNormalizing(editor, () => {
+          markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+        })
+        return
+      }
+      insertText(text)
+      return
+    }
+
     if (Range.isCollapsed(selection)) {
       insertText(text)
       return
     }
-    // Несвёрнутое выделение: создаём новую правку. Чтобы правки не перемешивались:
-    // — если выделение целиком внутри зачёркнутого одной правки: удаляем выделенный фрагмент,
-    //   вставляем новую правку (вставка + зачёркнутое) после конца той правки в том же блоке;
-    // — иначе: вставка сразу перед зачёркиванием (at = start selection).
-    const userId = ref.getCurrentUserId()
-    const userColor = userId ? ref.getUserColor(userId) : undefined
-    const suggestionId = generateSuggestionId()
-    const parentDeletionId = getSelectionEntirelyWithinDeletionSuggestionId(editor)
 
     SlateEditor.withoutNormalizing(editor, () => {
-      if (parentDeletionId != null) {
-        // Выделение внутри зачёркнутого одной правки: новая правка ставится после неё, без смешивания.
-        const blockPath = selection.anchor.path.slice(0, -1)
-        const fragment = SlateEditor.fragment(editor, selection)
-        const textNodes = collectTextNodesFromFragment(fragment)
-        const deletionNodes: FormattedText[] = textNodes.map((node) => {
-          const { text: nodeText, bold, italic, underline, fontSize, color, highlight } = node
-          return {
-            text: nodeText,
-            ...(bold && { bold: true }),
-            ...(italic && { italic: true }),
-            ...(underline && { underline: true }),
-            ...(fontSize && { fontSize }),
-            ...(color && { color }),
-            ...(highlight && { highlight }),
-            suggestionDeletion: true,
-            suggestionId,
-            authorId: userId,
-            authorColor: userColor,
-          } as FormattedText
-        })
-        Transforms.delete(editor, { at: selection })
-        const after = getPointAfterLastNodeOfSuggestionInBlock(editor, parentDeletionId, blockPath)
-        const insertAt = after ?? { path: blockPath.concat(0), offset: 0 }
-        const insertNode: FormattedText = {
-          text,
-          suggestionInsertion: true,
-          suggestionId,
-          authorId: userId,
-          authorColor: userColor,
-        }
-        Transforms.insertNodes(editor, [insertNode, ...deletionNodes] as { text: string; [k: string]: unknown }[], {
-          at: insertAt,
-        })
-        Transforms.select(editor, { path: insertAt.path, offset: insertAt.offset + text.length })
-      } else {
-        const start = Range.start(selection)
-        const startRef = SlateEditor.pointRef(editor, start)
-        Transforms.setNodes(
-          editor,
-          {
-            suggestionDeletion: true,
-            suggestionId,
-            authorId: userId,
-            authorColor: userColor,
-          } as Record<string, unknown>,
-          {
-            at: selection,
-            match: (n) => Text.isText(n),
-            split: true,
-          }
-        )
-        const at = startRef.unref()
-        if (at) {
-          const insertNode = {
-            text,
-            suggestionInsertion: true,
-            suggestionId,
-            authorId: userId,
-            authorColor: userColor,
-          }
-          Transforms.insertNodes(editor, insertNode as { text: string; [k: string]: unknown }, { at })
-          Transforms.select(editor, { path: at.path, offset: at.offset + text.length })
-        }
-      }
+      createReplacementSuggestion(editor, text, rt.userId, rt.userColor)
     })
+  }
+
+  editor.deleteFragment = (...args) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteFragment(...args)
+  }
+
+  editor.deleteBackward = (unit) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteBackward(unit)
+  }
+
+  editor.deleteForward = (unit) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteForward(unit)
   }
 
   return editor

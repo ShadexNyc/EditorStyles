@@ -118,14 +118,23 @@ function Leaf({
   if (shouldFadeLeaf) style.opacity = 0.2
 
   const isDeletion = isDeletionLeaf
+  const isDeletionModeSuggestion = text.suggestionMode === 'delete'
   const isInsertionNode = text.suggestionInsertion || text.reviewInsert
   const showInsertionStyle = isInsertionNode && !isEditingThisSuggestion
+  const shouldUseLeafMarginGap = true
+  if (isDeletionModeSuggestion && isDeletion) {
+    style.color = '#8d8d8d'
+    style.backgroundColor = 'rgba(160, 160, 160, 0.22)'
+    style.textDecoration = style.textDecoration ? `${style.textDecoration} line-through` : 'line-through'
+    style.textDecorationColor = '#8d8d8d'
+    style.textDecorationThickness = '2px'
+  }
   const isStyle5Or6 = reviewStyleId === 'style-5' || reviewStyleId === 'style-6'
   if (isStyle5Or6) {
     /* Стиль 5/6: зачёркнутый текст (deletion) всегда с красным фоном; вставка — цвет пользователя */
     if ((isDeletion || isInsertionNode) && text.authorColor) {
       style.display = 'inline'
-      if (shouldUseLeafMarginGap) style.marginRight = '2px'
+      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
       if (!isEditingThisSuggestion) {
         style.color = isDeletion ? 'var(--review-strikethrough-color)' : text.authorColor
         style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
@@ -154,7 +163,7 @@ function Leaf({
   } else {
     if (isDeletion) {
       style.display = 'inline'
-      if (shouldUseLeafMarginGap) style.marginRight = '2px'
+      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
       style.textDecoration = 'line-through'
       style.textDecorationColor = 'var(--review-strikethrough-color)'
       style.textDecorationThickness = 'var(--review-strikethrough-thickness, 2px)'
@@ -162,7 +171,7 @@ function Leaf({
     }
     if (isInsertionNode) {
       style.display = 'inline'
-      if (shouldUseLeafMarginGap) style.marginRight = '2px'
+      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
       style.borderLeft = `3px solid ${showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight ? text.authorColor : 'transparent'}`
     }
     if (showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight) {
@@ -176,6 +185,7 @@ function Leaf({
   if (text.suggestionId != null) {
     dataProps['data-suggestion-id'] = text.suggestionId
     dataProps['data-author-color'] = text.authorColor ?? ''
+    if (text.suggestionMode) dataProps['data-suggestion-mode'] = text.suggestionMode
     if (isDeletion) dataProps['data-review-type'] = 'deletion'
     else if (isInsertionNode) dataProps['data-review-type'] = 'insertion'
   }
@@ -427,7 +437,11 @@ function ReviewEditingOverlay({
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
+      const isDeletionModeSuggestion = Array.from(nodes).some((el) =>
+        (el as HTMLElement).getAttribute('data-suggestion-mode') === 'delete'
+      )
       const lineColor =
+        isDeletionModeSuggestion ||
         reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' || reviewStyleId === 'style-9'
           ? authorColor
           : style1LineColor
@@ -438,7 +452,7 @@ function ReviewEditingOverlay({
       }
 
       const topBottomSegments: TopBottomSegment[] = []
-      lineSegments.forEach((line) => {
+      const addLineSegments = (line: { top: number; bottom: number; minLeft: number; maxRight: number }) => {
         const left = Math.max(0, line.minLeft - containerRect.left)
         const width = Math.max(0, Math.min(line.maxRight - line.minLeft, containerWidth - left))
         if (width <= 0) return
@@ -446,7 +460,30 @@ function ReviewEditingOverlay({
         const bottom = line.bottom - containerRect.top + lineGap
         topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
         topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
-      })
+      }
+
+      if (reviewStyleId === 'style-9') {
+        const firstLine = lineSegments[0]
+        const lastLine = lineSegments[lineSegments.length - 1]
+        if (firstLine) {
+          const left = Math.max(0, firstLine.minLeft - containerRect.left)
+          const width = Math.max(0, Math.min(firstLine.maxRight - firstLine.minLeft, containerWidth - left))
+          if (width > 0) {
+            const top = Math.max(0, firstLine.top - containerRect.top - lineGap)
+            topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
+          }
+        }
+        if (lastLine) {
+          const left = Math.max(0, lastLine.minLeft - containerRect.left)
+          const width = Math.max(0, Math.min(lastLine.maxRight - lastLine.minLeft, containerWidth - left))
+          if (width > 0) {
+            const bottom = lastLine.bottom - containerRect.top + lineGap
+            topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
+          }
+        }
+      } else {
+        lineSegments.forEach(addLineSegments)
+      }
 
       if (topBottomSegments.length === 0) {
         setStyle1TopBottom(null)
