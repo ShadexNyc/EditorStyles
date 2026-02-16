@@ -13,6 +13,7 @@ export const REVIEW_HIGHLIGHT_STYLES: ReviewHighlightStyle[] = [
   { id: 'style-5', name: 'Стиль 5' },
   { id: 'style-6', name: 'Стиль 6' },
   { id: 'style-7', name: 'Стиль 7' },
+  { id: 'style-9', name: 'Стиль 9' },
 ]
 
 export interface ReviewContextValue {
