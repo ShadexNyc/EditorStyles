@@ -389,9 +389,11 @@ function ReviewEditingOverlay({
         setLineRects([])
         return
       }
-      /* Стиль 1/3/4/6: сегменты линий по каждой визуальной строке рецензии.
+      /* Стиль 1/3/4/6: линии только по краям блока рецензии.
        * Для точной геометрии собираем getClientRects() всех узлов рецензии,
-       * группируем по строкам и рисуем верх/низ на каждой строке. */
+       * группируем по визуальным строкам и рисуем только:
+       * - верхнюю линию первой строки;
+       * - нижнюю линию последней строки. */
       const lineTolerance = 3
       const visualLines: Array<{ top: number; bottom: number; rects: DOMRect[] }> = []
       Array.from(nodes).forEach((el) => {
@@ -424,23 +426,49 @@ function ReviewEditingOverlay({
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
-      const lineColor = reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' ? authorColor : style1LineColor
+      const lineColor = reviewStyleId === 'style-4' ||
+        reviewStyleId === 'style-5' ||
+        reviewStyleId === 'style-7' ||
+        reviewStyleId === 'style-8'
+          ? authorColor
+          : style1LineColor
       if (lineSegments.length === 0) {
         setStyle1TopBottom(null)
         setLineRects([])
         return
       }
 
-      const topBottomSegments: TopBottomSegment[] = []
-      lineSegments.forEach((line) => {
+      const firstLine = lineSegments[0]
+      const lastLine = lineSegments[lineSegments.length - 1]
+      const toSegmentGeometry = (line: { top: number; bottom: number; minLeft: number; maxRight: number }) => {
         const left = Math.max(0, line.minLeft - containerRect.left)
         const width = Math.max(0, Math.min(line.maxRight - line.minLeft, containerWidth - left))
-        if (width <= 0) return
-        const top = Math.max(0, line.top - containerRect.top - lineGap)
-        const bottom = line.bottom - containerRect.top + lineGap
-        topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
-        topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
-      })
+        return { left, width }
+      }
+
+      const firstGeometry = toSegmentGeometry(firstLine)
+      const lastGeometry = toSegmentGeometry(lastLine)
+      const topBottomSegments: TopBottomSegment[] = []
+      if (firstGeometry.width > 0) {
+        topBottomSegments.push({
+          top: Math.max(0, firstLine.top - containerRect.top - lineGap),
+          left: firstGeometry.left,
+          width: firstGeometry.width,
+          height: lineHeight,
+          color: lineColor,
+          edge: 'top',
+        })
+      }
+      if (lastGeometry.width > 0) {
+        topBottomSegments.push({
+          top: lastLine.bottom - containerRect.top + lineGap,
+          left: lastGeometry.left,
+          width: lastGeometry.width,
+          height: lineHeight,
+          color: lineColor,
+          edge: 'bottom',
+        })
+      }
 
       if (topBottomSegments.length === 0) {
         setStyle1TopBottom(null)
