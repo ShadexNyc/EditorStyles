@@ -113,21 +113,16 @@ function Leaf({
   const isEditingThisSuggestion =
     text.suggestionId != null &&
     (text.suggestionId === editingSuggestionId || text.suggestionId === sidebarEditingSuggestionId)
-  const hasActiveEditingSuggestion = editingSuggestionId != null || sidebarEditingSuggestionId != null
-  const shouldFadeLeaf = reviewStyleId === 'style-9' && hasActiveEditingSuggestion && !isEditingThisSuggestion
-  if (shouldFadeLeaf) style.opacity = 0.2
-
+  const shouldUseLeafMarginGap = text.suggestionId == null
   const isDeletion = isDeletionLeaf
-  const isDeletionModeSuggestion = text.suggestionMode === 'delete'
   const isInsertionNode = text.suggestionInsertion || text.reviewInsert
   const showInsertionStyle = isInsertionNode && !isEditingThisSuggestion
-  const shouldUseLeafMarginGap = true
   const isStyle5Or6 = reviewStyleId === 'style-5' || reviewStyleId === 'style-6'
   if (isStyle5Or6) {
     /* Стиль 5/6: зачёркнутый текст (deletion) всегда с красным фоном; вставка — цвет пользователя */
     if ((isDeletion || isInsertionNode) && text.authorColor) {
       style.display = 'inline'
-      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       if (!isEditingThisSuggestion) {
         style.color = isDeletion ? 'var(--review-strikethrough-color)' : text.authorColor
         style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
@@ -156,7 +151,7 @@ function Leaf({
   } else {
     if (isDeletion) {
       style.display = 'inline'
-      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       style.textDecoration = 'line-through'
       style.textDecorationColor = 'var(--review-strikethrough-color)'
       style.textDecorationThickness = 'var(--review-strikethrough-thickness, 2px)'
@@ -164,7 +159,7 @@ function Leaf({
     }
     if (isInsertionNode) {
       style.display = 'inline'
-      style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       style.borderLeft = `3px solid ${showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight ? text.authorColor : 'transparent'}`
     }
     if (showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight) {
@@ -174,22 +169,10 @@ function Leaf({
       style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
     }
   }
-
-  if (isDeletionModeSuggestion && isDeletion) {
-    style.display = 'inline'
-    style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
-    style.color = '#8d8d8d'
-    style.backgroundColor = 'rgba(160, 160, 160, 0.22)'
-    style.textDecoration = style.textDecoration ? `${style.textDecoration} line-through` : 'line-through'
-    style.textDecorationColor = '#8d8d8d'
-    style.textDecorationThickness = '2px'
-  }
-
   const dataProps: Record<string, string> = {}
   if (text.suggestionId != null) {
     dataProps['data-suggestion-id'] = text.suggestionId
     dataProps['data-author-color'] = text.authorColor ?? ''
-    if (text.suggestionMode) dataProps['data-suggestion-mode'] = text.suggestionMode
     if (isDeletion) dataProps['data-review-type'] = 'deletion'
     else if (isInsertionNode) dataProps['data-review-type'] = 'insertion'
   }
@@ -406,9 +389,11 @@ function ReviewEditingOverlay({
         setLineRects([])
         return
       }
-      /* Стиль 1/3/4/6: сегменты линий по каждой визуальной строке рецензии.
+      /* Стиль 1/3/4/6: линии только по краям блока рецензии.
        * Для точной геометрии собираем getClientRects() всех узлов рецензии,
-       * группируем по строкам и рисуем верх/низ на каждой строке. */
+       * группируем по визуальным строкам и рисуем только:
+       * - верхнюю линию первой строки;
+       * - нижнюю линию последней строки. */
       const lineTolerance = 3
       const visualLines: Array<{ top: number; bottom: number; rects: DOMRect[] }> = []
       Array.from(nodes).forEach((el) => {
@@ -441,12 +426,10 @@ function ReviewEditingOverlay({
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
-      const isDeletionModeSuggestion = Array.from(nodes).some((el) =>
-        (el as HTMLElement).getAttribute('data-suggestion-mode') === 'delete'
-      )
-      const lineColor =
-        isDeletionModeSuggestion ||
-        reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' || reviewStyleId === 'style-9'
+      const lineColor = reviewStyleId === 'style-4' ||
+        reviewStyleId === 'style-5' ||
+        reviewStyleId === 'style-7' ||
+        reviewStyleId === 'style-8'
           ? authorColor
           : style1LineColor
       if (lineSegments.length === 0) {
@@ -455,38 +438,36 @@ function ReviewEditingOverlay({
         return
       }
 
-      const topBottomSegments: TopBottomSegment[] = []
-      const addLineSegments = (line: { top: number; bottom: number; minLeft: number; maxRight: number }) => {
+      const firstLine = lineSegments[0]
+      const lastLine = lineSegments[lineSegments.length - 1]
+      const toSegmentGeometry = (line: { top: number; bottom: number; minLeft: number; maxRight: number }) => {
         const left = Math.max(0, line.minLeft - containerRect.left)
         const width = Math.max(0, Math.min(line.maxRight - line.minLeft, containerWidth - left))
-        if (width <= 0) return
-        const top = Math.max(0, line.top - containerRect.top - lineGap)
-        const bottom = line.bottom - containerRect.top + lineGap
-        topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
-        topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
+        return { left, width }
       }
 
-      if (reviewStyleId === 'style-9' || isDeletionModeSuggestion) {
-        const firstLine = lineSegments[0]
-        const lastLine = lineSegments[lineSegments.length - 1]
-        if (firstLine) {
-          const left = Math.max(0, firstLine.minLeft - containerRect.left)
-          const width = Math.max(0, Math.min(firstLine.maxRight - firstLine.minLeft, containerWidth - left))
-          if (width > 0) {
-            const top = Math.max(0, firstLine.top - containerRect.top - lineGap)
-            topBottomSegments.push({ top, left, width, height: lineHeight, color: lineColor, edge: 'top' })
-          }
-        }
-        if (lastLine) {
-          const left = Math.max(0, lastLine.minLeft - containerRect.left)
-          const width = Math.max(0, Math.min(lastLine.maxRight - lastLine.minLeft, containerWidth - left))
-          if (width > 0) {
-            const bottom = lastLine.bottom - containerRect.top + lineGap
-            topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
-          }
-        }
-      } else {
-        lineSegments.forEach(addLineSegments)
+      const firstGeometry = toSegmentGeometry(firstLine)
+      const lastGeometry = toSegmentGeometry(lastLine)
+      const topBottomSegments: TopBottomSegment[] = []
+      if (firstGeometry.width > 0) {
+        topBottomSegments.push({
+          top: Math.max(0, firstLine.top - containerRect.top - lineGap),
+          left: firstGeometry.left,
+          width: firstGeometry.width,
+          height: lineHeight,
+          color: lineColor,
+          edge: 'top',
+        })
+      }
+      if (lastGeometry.width > 0) {
+        topBottomSegments.push({
+          top: lastLine.bottom - containerRect.top + lineGap,
+          left: lastGeometry.left,
+          width: lastGeometry.width,
+          height: lineHeight,
+          color: lineColor,
+          edge: 'bottom',
+        })
       }
 
       if (topBottomSegments.length === 0) {

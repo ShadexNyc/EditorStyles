@@ -25,7 +25,6 @@ export interface FormattedText extends BaseText {
   suggestionDeletion?: boolean
   suggestionInsertion?: boolean
   suggestionId?: string
-  suggestionMode?: 'replace' | 'delete' | 'insert'
   authorId?: string
   authorColor?: string
   reviewInsert?: boolean
