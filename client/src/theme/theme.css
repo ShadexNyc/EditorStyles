@@ -480,6 +480,30 @@ html, body {
   color: #000 !important;
 }
 
+/* Стиль 8: копия стиля 4, но при редактировании у зачёркнутого текста нет красного фона */
+[data-review-style="style-8"] .review-deletion,
+[data-review-style="style-8"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-8"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-8"] .review-strikethrough,
+[data-review-style="style-8"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-8"] .review-deletion.review-deletion-editing {
+  color: #000 !important;
+  background-color: transparent !important;
+}
+
+[data-review-style="style-8"] .review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
 /* Стиль 7: как стиль 4, в начале вставки — 3px вертикальная линия в цвет пользователя (когда не редактирует) */
 [data-review-style="style-7"] .review-deletion,
 [data-review-style="style-7"] .review-insertion {

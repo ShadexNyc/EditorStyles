@@ -426,7 +426,12 @@ function ReviewEditingOverlay({
       const lineHeight = 2
       const lineGap = 2
       const style1LineColor = 'var(--review-style1-line, #b0b0b0)'
-      const lineColor = reviewStyleId === 'style-4' || reviewStyleId === 'style-5' || reviewStyleId === 'style-7' ? authorColor : style1LineColor
+      const lineColor = reviewStyleId === 'style-4' ||
+        reviewStyleId === 'style-5' ||
+        reviewStyleId === 'style-7' ||
+        reviewStyleId === 'style-8'
+          ? authorColor
+          : style1LineColor
       if (lineSegments.length === 0) {
         setStyle1TopBottom(null)
         setLineRects([])
