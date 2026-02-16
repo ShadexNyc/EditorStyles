@@ -4,7 +4,7 @@ import { Editor as SlateEditor, Element, Path, Range, Transforms } from 'slate'
 import { Text } from 'slate'
 import type { Descendant } from 'slate'
 import type { FormattedText } from '../types/slate'
-import type { ReviewPluginRef } from '../services/review/ReviewContext'
+import type { ReviewEditMode, ReviewPluginRef } from '../services/review/ReviewContext'
 
 function generateSuggestionId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -12,25 +12,15 @@ function generateSuggestionId(): string {
 
 function isSelectionEntirelyWithinInsertion(editor: Editor): boolean {
   const selection = editor.selection
-  if (!selection) return false
-  if (Range.isCollapsed(selection)) {
-    try {
-      const [node] = SlateEditor.node(editor, selection.anchor)
-      if (!Text.isText(node)) return false
-      const t = node as FormattedText
-      return !!(t.suggestionInsertion && t.suggestionId)
-    } catch {
-      return false
-    }
-  }
-  let suggestionId: string | null = null
-  for (const [node] of SlateEditor.nodes(editor, { at: selection, match: Text.isText })) {
+  if (!selection || !Range.isCollapsed(selection)) return false
+  try {
+    const [node] = SlateEditor.node(editor, selection.anchor)
+    if (!Text.isText(node)) return false
     const t = node as FormattedText
-    if (!t.suggestionInsertion || !t.suggestionId) return false
-    if (suggestionId === null) suggestionId = t.suggestionId
-    else if (suggestionId !== t.suggestionId) return false
+    return !!(t.suggestionInsertion && t.suggestionId)
+  } catch {
+    return false
   }
-  return suggestionId !== null
 }
 
 function getSelectionEntirelyWithinDeletionSuggestionId(editor: Editor): string | null {
@@ -285,6 +275,42 @@ export function withReview<T extends Editor>(
       markRangeAsDeletion(editor, range, suggestionId, rt.userId, rt.userColor)
       Transforms.select(editor, selection.anchor)
     })
+  }
+
+  editor.deleteFragment = (...args) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteFragment(...args)
+  }
+
+  editor.deleteBackward = (unit) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteBackward(unit)
+  }
+
+  editor.deleteForward = (unit) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (rt.enabled && rt.mode === 'delete' && selection && !Range.isCollapsed(selection)) {
+      SlateEditor.withoutNormalizing(editor, () => {
+        markSelectionAsDeletion(editor, rt.userId, rt.userColor)
+      })
+      return
+    }
+    deleteForward(unit)
   }
 
   return editor
