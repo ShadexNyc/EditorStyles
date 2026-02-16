@@ -208,7 +208,7 @@ export function acceptSuggestion(editor: Editor, suggestionId: string): boolean 
 
   SlateEditor.withoutNormalizing(editor, () => {
     for (const path of insertionPaths) {
-      Transforms.unsetNodes(editor, ['suggestionId', 'suggestionInsertion', 'suggestionDeletion', 'reviewInsert', 'reviewDelete', 'authorId', 'authorColor'], {
+      Transforms.unsetNodes(editor, ['suggestionId', 'suggestionInsertion', 'suggestionDeletion', 'reviewInsert', 'reviewDelete', 'authorId', 'authorColor', 'suggestionMode'], {
         at: path,
         match: (n) => Text.isText(n),
         split: false,
@@ -264,7 +264,7 @@ export function rejectSuggestion(editor: Editor, suggestionId: string): boolean 
     // Зачёркнутый текст: только снимаем разметку рецензии — текст остаётся в документе как обычный
     for (const { path } of deletionEntries) {
       try {
-        Transforms.unsetNodes(editor, ['suggestionId', 'suggestionInsertion', 'suggestionDeletion', 'reviewInsert', 'reviewDelete', 'authorId', 'authorColor'], {
+        Transforms.unsetNodes(editor, ['suggestionId', 'suggestionInsertion', 'suggestionDeletion', 'reviewInsert', 'reviewDelete', 'authorId', 'authorColor', 'suggestionMode'], {
           at: path,
           match: (n) => Text.isText(n),
           split: false,
