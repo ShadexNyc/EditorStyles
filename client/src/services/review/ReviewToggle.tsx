@@ -18,8 +18,22 @@ const activeBtn = {
   color: '#fff',
 }
 
+const modeBtn = {
+  ...ribbonBtn,
+  padding: '4px 8px',
+  fontSize: 11,
+  border: '1px solid #d5d5d5',
+}
+
+const modeBtnActive = {
+  ...modeBtn,
+  background: '#1f6feb',
+  color: '#fff',
+  border: '1px solid #1f6feb',
+}
+
 export function ReviewToggle() {
-  const { reviewMode, setReviewMode } = useReview()
+  const { reviewMode, setReviewMode, reviewEditMode, setReviewEditMode } = useReview()
   const editor = useSlate()
   const savedSelectionRef = useRef<Range | null>(null)
 
