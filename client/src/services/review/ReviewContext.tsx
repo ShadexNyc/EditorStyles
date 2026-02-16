@@ -32,10 +32,12 @@ export interface ReviewContextValue {
 
 export type ReviewEditMode = 'replace' | 'delete' | 'insert'
 
+const DEFAULT_REVIEW_EDIT_MODE: ReviewEditMode = 'replace'
+
 export const ReviewContext = createContext<ReviewContextValue>({
   reviewMode: false,
   setReviewMode: () => {},
-  reviewEditMode: 'replace',
+  reviewEditMode: DEFAULT_REVIEW_EDIT_MODE,
   setReviewEditMode: () => {},
   reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
   currentReviewStyleId: 'style-1',
@@ -44,7 +46,7 @@ export const ReviewContext = createContext<ReviewContextValue>({
 
 export function ReviewProvider({ children }: { children: ReactNode }) {
   const [reviewMode, setReviewMode] = useState(false)
-  const [reviewEditMode, setReviewEditMode] = useState<ReviewEditMode>('replace')
+  const [reviewEditMode, setReviewEditMode] = useState<ReviewEditMode>(DEFAULT_REVIEW_EDIT_MODE)
   const [currentReviewStyleId, setCurrentReviewStyleId] = useState('style-1')
   return (
     <ReviewContext.Provider

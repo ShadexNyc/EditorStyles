@@ -4,7 +4,7 @@ import { Editor as SlateEditor, Element, Path, Range, Transforms } from 'slate'
 import { Text } from 'slate'
 import type { Descendant } from 'slate'
 import type { FormattedText } from '../types/slate'
-import type { ReviewEditMode, ReviewPluginRef } from '../services/review/ReviewContext'
+import type { ReviewPluginRef } from '../services/review/ReviewContext'
 
 function generateSuggestionId(): string {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -198,12 +198,11 @@ export function withReview<T extends Editor>(
 ): T {
   const { insertText, deleteFragment, deleteBackward, deleteForward } = editor
 
-  const getReviewRuntime = (): { enabled: boolean; mode: ReviewEditMode; userId?: string; userColor?: string } => {
+  const getReviewRuntime = (): { enabled: boolean; userId?: string; userColor?: string } => {
     const ref = pluginRef.current
-    if (!ref || !ref.getReviewMode()) return { enabled: false, mode: 'replace' }
+    if (!ref || !ref.getReviewMode()) return { enabled: false }
     const userId = ref.getCurrentUserId()
-    const mode = ref.getReviewEditMode?.() ?? 'replace'
-    return { enabled: true, mode, userId, userColor: userId ? ref.getUserColor(userId) : undefined }
+    return { enabled: true, userId, userColor: userId ? ref.getUserColor(userId) : undefined }
   }
 
   editor.insertText = (text: string) => {
