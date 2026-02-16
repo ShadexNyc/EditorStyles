@@ -100,6 +100,7 @@ function insertInsertionAtPoint(
   userId?: string,
   userColor?: string
 ): void {
+  if (text.length === 0) return
   const insertNode: FormattedText = {
     text,
     suggestionInsertion: true,
@@ -181,6 +182,11 @@ export function withReview<T extends Editor>(
   }
 
   editor.insertText = (text: string) => {
+    if (text.length === 0) {
+      insertText(text)
+      return
+    }
+
     const rt = getReviewRuntime()
     const selection = editor.selection
     if (!rt.enabled || !selection) {
@@ -244,6 +250,36 @@ export function withReview<T extends Editor>(
     SlateEditor.withoutNormalizing(editor, () => {
       markRangeAsDeletion(editor, range, suggestionId, rt.userId, rt.userColor)
       Transforms.select(editor, before)
+    })
+  }
+
+  editor.deleteForward = (unit) => {
+    const rt = getReviewRuntime()
+    const selection = editor.selection
+    if (!rt.enabled || !selection) {
+      deleteForward(unit)
+      return
+    }
+
+    if (!Range.isCollapsed(selection)) {
+      const suggestionId = generateSuggestionId()
+      SlateEditor.withoutNormalizing(editor, () => {
+        markRangeAsDeletion(editor, selection, suggestionId, rt.userId, rt.userColor)
+        Transforms.collapse(editor, { edge: 'start' })
+      })
+      return
+    }
+
+    const after = SlateEditor.after(editor, selection.anchor, { unit })
+    if (!after) {
+      deleteForward(unit)
+      return
+    }
+    const suggestionId = generateSuggestionId()
+    const range: SlateRange = { anchor: selection.anchor, focus: after }
+    SlateEditor.withoutNormalizing(editor, () => {
+      markRangeAsDeletion(editor, range, suggestionId, rt.userId, rt.userColor)
+      Transforms.select(editor, selection.anchor)
     })
   }
 
