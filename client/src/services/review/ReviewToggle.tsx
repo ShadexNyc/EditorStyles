@@ -64,38 +64,14 @@ export function ReviewToggle() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <button
-        type="button"
-        style={reviewMode ? activeBtn : ribbonBtn}
-        onMouseDown={handleMouseDown}
-        onClick={handleClick}
-        title="Режим рецензирования"
-      >
-        Рецензирование
-      </button>
-      {reviewMode && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button
-            type="button"
-            style={reviewEditMode === 'delete' ? modeBtnActive : modeBtn}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setReviewEditMode('delete')}
-            title="Режим удаления: выделите текст и удалите"
-          >
-            Удаление
-          </button>
-          <button
-            type="button"
-            style={reviewEditMode === 'insert' ? modeBtnActive : modeBtn}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setReviewEditMode('insert')}
-            title="Режим добавления: печать создаёт предложение вставки"
-          >
-            Добавление
-          </button>
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      style={reviewMode ? activeBtn : ribbonBtn}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
+      title="Режим рецензирования"
+    >
+      Рецензирование
+    </button>
   )
 }

@@ -122,13 +122,6 @@ function Leaf({
   const isInsertionNode = text.suggestionInsertion || text.reviewInsert
   const showInsertionStyle = isInsertionNode && !isEditingThisSuggestion
   const shouldUseLeafMarginGap = true
-  if (isDeletionModeSuggestion && isDeletion) {
-    style.color = '#8d8d8d'
-    style.backgroundColor = 'rgba(160, 160, 160, 0.22)'
-    style.textDecoration = style.textDecoration ? `${style.textDecoration} line-through` : 'line-through'
-    style.textDecorationColor = '#8d8d8d'
-    style.textDecorationThickness = '2px'
-  }
   const isStyle5Or6 = reviewStyleId === 'style-5' || reviewStyleId === 'style-6'
   if (isStyle5Or6) {
     /* Стиль 5/6: зачёркнутый текст (deletion) всегда с красным фоном; вставка — цвет пользователя */
@@ -181,6 +174,17 @@ function Leaf({
       style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
     }
   }
+
+  if (isDeletionModeSuggestion && isDeletion) {
+    style.display = 'inline'
+    style.marginRight = shouldUseLeafMarginGap ? '2px' : undefined
+    style.color = '#8d8d8d'
+    style.backgroundColor = 'rgba(160, 160, 160, 0.22)'
+    style.textDecoration = style.textDecoration ? `${style.textDecoration} line-through` : 'line-through'
+    style.textDecorationColor = '#8d8d8d'
+    style.textDecorationThickness = '2px'
+  }
+
   const dataProps: Record<string, string> = {}
   if (text.suggestionId != null) {
     dataProps['data-suggestion-id'] = text.suggestionId
@@ -462,7 +466,7 @@ function ReviewEditingOverlay({
         topBottomSegments.push({ top: bottom, left, width, height: lineHeight, color: lineColor, edge: 'bottom' })
       }
 
-      if (reviewStyleId === 'style-9') {
+      if (reviewStyleId === 'style-9' || isDeletionModeSuggestion) {
         const firstLine = lineSegments[0]
         const lastLine = lineSegments[lineSegments.length - 1]
         if (firstLine) {
