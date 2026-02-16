@@ -82,12 +82,14 @@ function Leaf({
   acceptHighlightSuggestionId,
   reviewStyleId,
   acceptHover,
+  activeEditingSuggestionId,
 }: RenderLeafProps & {
   editingSuggestionId: string | null
   sidebarEditingSuggestionId: string | null
   acceptHighlightSuggestionId: string | null
   reviewStyleId: string
   acceptHover: boolean
+  activeEditingSuggestionId: string | null
 }) {
   const text = leaf as FormattedText
   const style: React.CSSProperties = {}
@@ -185,6 +187,7 @@ function Leaf({
     (isInsertionNode || showInsertionStyle) && 'review-insertion',
     text.acceptFlash && 'review-accept-flash',
     isInsertionAcceptHighlight && 'review-accept-highlight',
+    text.suggestionId != null && text.suggestionId === activeEditingSuggestionId && 'review-editing-active',
   ]
     .filter(Boolean)
     .join(' ')
@@ -429,7 +432,8 @@ function ReviewEditingOverlay({
       const lineColor = reviewStyleId === 'style-4' ||
         reviewStyleId === 'style-5' ||
         reviewStyleId === 'style-7' ||
-        reviewStyleId === 'style-8'
+        reviewStyleId === 'style-8' ||
+        reviewStyleId === 'style-9'
           ? authorColor
           : style1LineColor
       if (lineSegments.length === 0) {
@@ -677,6 +681,7 @@ export function SlateEditorBody() {
 
   const isAcceptHighlight = acceptHover || acceptHoverSuggestionId != null
   const acceptHighlightId = acceptHoverSuggestionId ?? overlayEditingId
+  const shouldDimForStyle9 = currentReviewStyleId === 'style-9' && overlayEditingId != null
 
   useEffect(() => {
     if (editingSuggestionId === null) {
@@ -708,6 +713,7 @@ export function SlateEditorBody() {
         acceptHighlightSuggestionId={acceptHighlightId}
         reviewStyleId={currentReviewStyleId}
         acceptHover={isAcceptHighlight}
+        activeEditingSuggestionId={overlayEditingId}
       />
     ),
     [
@@ -740,12 +746,13 @@ export function SlateEditorBody() {
   return (
     <div
       ref={wrapRef}
-      className="slate-editor-wrap"
+      className={`slate-editor-wrap${shouldDimForStyle9 ? ' review-editing-dimmed' : ''}`}
       style={{ position: 'relative' }}
       data-review-style={currentReviewStyleId}
     >
       <div
         ref={editableWrapRef}
+        className="slate-editor-content"
         style={{ minHeight: '100%' }}
         onMouseDown={() => setFromSidebar(false)}
       >
