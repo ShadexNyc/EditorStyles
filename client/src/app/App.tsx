@@ -24,10 +24,11 @@ function App() {
     users,
     addUser,
   } = useDocumentStorage(initialContent)
-  const { reviewMode } = useReview()
+  const { reviewMode, reviewEditMode } = useReview()
   const reviewPluginRef = useRef<import('../services/review/ReviewContext').ReviewPluginRef | null>(null)
   reviewPluginRef.current = {
     getReviewMode: () => reviewMode,
+    getReviewEditMode: () => reviewEditMode,
     getCurrentUserId: () => currentUserId,
     getUserColor: (id: string) => users.find((u) => u.id === id)?.color ?? '#666',
   }

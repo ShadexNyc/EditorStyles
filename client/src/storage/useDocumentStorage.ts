@@ -2,27 +2,28 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Descendant } from 'slate'
 import type { User } from '../services/users/users'
 import { DEFAULT_USERS, createNewUser, MAX_USERS } from '../services/users/users'
-import { DEFAULT_DOCUMENT_ID, deleteAppDatabase, getDocument, setDocument } from './db'
+import { DEFAULT_DOCUMENT_ID, getDocument, setDocument } from './db'
 import type { DocumentRecord } from './db'
 
 const SAVE_DEBOUNCE_MS = 1500
 
 export function useDocumentStorage(initialContent: Descendant[]) {
-  const [content, setContent] = useState<Descendant[] | null>(null)
+  const defaultUserId = DEFAULT_USERS[0]?.id
+  const [content, setContent] = useState<Descendant[]>(initialContent)
   const [users, setUsersState] = useState<User[]>(DEFAULT_USERS)
-  const [currentUserId, setCurrentUserIdState] = useState<string | undefined>(undefined)
-  const initialRef = useRef<Descendant[] | null>(null)
+  const [currentUserId, setCurrentUserIdState] = useState<string | undefined>(defaultUserId)
+  const initialRef = useRef<Descendant[]>(initialContent)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const currentUserIdRef = useRef<string | undefined>(undefined)
+  const currentUserIdRef = useRef<string | undefined>(defaultUserId)
   const contentRef = useRef<Descendant[]>(initialContent)
   const usersRef = useRef<User[]>(DEFAULT_USERS)
   usersRef.current = users
 
   useEffect(() => {
     let cancelled = false
-    deleteAppDatabase()
-      .then(() => getDocument(DEFAULT_DOCUMENT_ID))
-      .then((record) => {
+    const hydrate = async () => {
+      try {
+        const record = await getDocument(DEFAULT_DOCUMENT_ID)
         if (cancelled) return
         const docUsers =
           record?.users != null && record.users.length > 0 ? record.users : DEFAULT_USERS
@@ -37,7 +38,21 @@ export function useDocumentStorage(initialContent: Descendant[]) {
         setUsersState(docUsers)
         setCurrentUserIdState(docCurrentUserId)
         currentUserIdRef.current = docCurrentUserId
-      })
+      } catch {
+        if (cancelled) return
+        const fallbackUsers = DEFAULT_USERS
+        const fallbackFirstUserId = fallbackUsers[0]?.id
+        initialRef.current = initialContent
+        contentRef.current = initialContent
+        usersRef.current = fallbackUsers
+        setContent(initialContent)
+        setUsersState(fallbackUsers)
+        setCurrentUserIdState(fallbackFirstUserId)
+        currentUserIdRef.current = fallbackFirstUserId
+      }
+    }
+
+    void hydrate()
     return () => {
       cancelled = true
     }
@@ -111,8 +126,8 @@ export function useDocumentStorage(initialContent: Descendant[]) {
     [save]
   )
 
-  const loaded = content !== null
-  const initialValue = initialRef.current ?? initialContent
+  const loaded = true
+  const initialValue = initialRef.current
 
   return {
     loaded,
