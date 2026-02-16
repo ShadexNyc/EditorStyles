@@ -125,7 +125,7 @@ function Leaf({
     /* Стиль 5/6: зачёркнутый текст (deletion) всегда с красным фоном; вставка — цвет пользователя */
     if ((isDeletion || isInsertionNode) && text.authorColor) {
       style.display = 'inline'
-      style.marginRight = '2px'
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       if (!isEditingThisSuggestion) {
         style.color = isDeletion ? 'var(--review-strikethrough-color)' : text.authorColor
         style.textDecoration = style.textDecoration ? `${style.textDecoration} underline` : 'underline'
@@ -154,7 +154,7 @@ function Leaf({
   } else {
     if (isDeletion) {
       style.display = 'inline'
-      style.marginRight = '2px'
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       style.textDecoration = 'line-through'
       style.textDecorationColor = 'var(--review-strikethrough-color)'
       style.textDecorationThickness = 'var(--review-strikethrough-thickness, 2px)'
@@ -162,7 +162,7 @@ function Leaf({
     }
     if (isInsertionNode) {
       style.display = 'inline'
-      style.marginRight = '2px'
+      if (shouldUseLeafMarginGap) style.marginRight = '2px'
       style.borderLeft = `3px solid ${showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight ? text.authorColor : 'transparent'}`
     }
     if (showInsertionStyle && text.authorColor && !isInsertionAcceptHighlight) {
