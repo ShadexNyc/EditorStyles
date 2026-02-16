@@ -108,6 +108,7 @@ function markDeletionRange(editor: Editor, range: SlateRange, pluginRef: ReviewP
     editor,
     {
       suggestionDeletion: true,
+      suggestionDeletionKind: 'plain-delete',
       suggestionId,
       authorId,
       authorColor,

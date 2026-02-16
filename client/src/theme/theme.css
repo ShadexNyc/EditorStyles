@@ -405,11 +405,14 @@ html, body {
   text-decoration-thickness: 2px !important;
 }
 
-/* Базовый стиль удалённого текста в неактивной рецензии: серый текст, серая зачёркивающая линия и серая подложка. */
+/* Когда вышли из редактирования — цвет зачёркнутого текста чёрный */
 .review-deletion:not(.review-deletion-editing) {
-  color: #6b7280 !important;
-  text-decoration-color: #9ca3af !important;
-  background-color: rgba(156, 163, 175, 0.2) !important;
+  color: #000 !important;
+}
+
+/* Зачёркнутый текст (удаление) всегда с красным фоном, в т.ч. у вложенной рецензии — !important перебивает любые инлайны */
+.review-deletion {
+  background-color: rgba(255, 0, 0, 0.1) !important;
 }
 
 /* Кнопка «Принять» в комментариях: подсветка зелёным только предложенного текста (вставки), зачёркнутый не подсвечиваем */
@@ -573,8 +576,8 @@ html, body {
   color: var(--review-strikethrough-color) !important;
 }
 
-/* Единый вид удалённого текста вне редактирования для всех стилей рецензирования. */
-.slate-editor-wrap [data-review-type="deletion"].review-deletion:not(.review-deletion-editing) {
+/* Обычное удаление текста (backspace/delete) в review mode: всегда серый зачёркнутый текст с серой подложкой. */
+.slate-editor-wrap [data-review-type="deletion"][data-review-deletion-kind="plain-delete"].review-deletion:not(.review-deletion-editing) {
   color: #6b7280 !important;
   text-decoration-color: #9ca3af !important;
   background-color: rgba(156, 163, 175, 0.2) !important;

@@ -175,7 +175,10 @@ function Leaf({
   if (text.suggestionId != null) {
     dataProps['data-suggestion-id'] = text.suggestionId
     dataProps['data-author-color'] = text.authorColor ?? ''
-    if (isDeletion) dataProps['data-review-type'] = 'deletion'
+    if (isDeletion) {
+      dataProps['data-review-type'] = 'deletion'
+      if (text.suggestionDeletionKind) dataProps['data-review-deletion-kind'] = text.suggestionDeletionKind
+    }
     else if (isInsertionNode) dataProps['data-review-type'] = 'insertion'
   }
   if (isInsertionAcceptHighlight) {
