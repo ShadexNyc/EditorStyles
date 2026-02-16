@@ -24,7 +24,6 @@ export function ReviewToggle() {
   const savedSelectionRef = useRef<Range | null>(null)
 
   const handleMouseDown = (_e: React.MouseEvent) => {
-    // Сохраняем выделение до того, как клик на кнопке приведёт к его потере
     if (!reviewMode && editor.selection && !Range.isCollapsed(editor.selection)) {
       savedSelectionRef.current = editor.selection
     } else {
@@ -36,20 +35,13 @@ export function ReviewToggle() {
     const newReviewMode = !reviewMode
     setReviewMode(newReviewMode)
 
-    // Если включаем режим рецензирования и было сохранено выделение текста,
-    // восстанавливаем его и фокусируем редактор, чтобы пользователь мог сразу начать печатать
     if (newReviewMode && savedSelectionRef.current) {
       const savedSelection = savedSelectionRef.current
-      
-      // Используем requestAnimationFrame для восстановления выделения и фокуса после обновления состояния
       requestAnimationFrame(() => {
-        // Восстанавливаем выделение
         try {
           Transforms.select(editor, savedSelection)
-          // Фокусируем редактор через ReactEditor API
           ReactEditor.focus(editor as ReactEditor)
         } catch (error) {
-          // Если выделение стало невалидным (например, текст был удалён), игнорируем ошибку
           console.debug('Could not restore selection:', error)
         }
         savedSelectionRef.current = null
@@ -63,7 +55,7 @@ export function ReviewToggle() {
       style={reviewMode ? activeBtn : ribbonBtn}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      title="Режим рецензирования: выделите текст и введите правку"
+      title="Режим рецензирования"
     >
       Рецензирование
     </button>
