@@ -12,25 +12,15 @@ function generateSuggestionId(): string {
 
 function isSelectionEntirelyWithinInsertion(editor: Editor): boolean {
   const selection = editor.selection
-  if (!selection) return false
-  if (Range.isCollapsed(selection)) {
-    try {
-      const [node] = SlateEditor.node(editor, selection.anchor)
-      if (!Text.isText(node)) return false
-      const t = node as FormattedText
-      return !!(t.suggestionInsertion && t.suggestionId)
-    } catch {
-      return false
-    }
-  }
-  let suggestionId: string | null = null
-  for (const [node] of SlateEditor.nodes(editor, { at: selection, match: Text.isText })) {
+  if (!selection || !Range.isCollapsed(selection)) return false
+  try {
+    const [node] = SlateEditor.node(editor, selection.anchor)
+    if (!Text.isText(node)) return false
     const t = node as FormattedText
-    if (!t.suggestionInsertion || !t.suggestionId) return false
-    if (suggestionId === null) suggestionId = t.suggestionId
-    else if (suggestionId !== t.suggestionId) return false
+    return !!(t.suggestionInsertion && t.suggestionId)
+  } catch {
+    return false
   }
-  return suggestionId !== null
 }
 
 function getSelectionEntirelyWithinDeletionSuggestionId(editor: Editor): string | null {
