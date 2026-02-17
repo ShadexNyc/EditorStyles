@@ -480,6 +480,38 @@ html, body {
   color: #000 !important;
 }
 
+
+/* Стиль 9: копия стиля 4 + при редактировании рецензии остальной текст бледнеет до 20% */
+[data-review-style="style-9"] .review-deletion,
+[data-review-style="style-9"] .review-insertion {
+  /* оформление задаётся инлайном в Leaf */
+}
+
+[data-review-style="style-9"] .review-insertion {
+  border-left: none !important;
+}
+
+[data-review-style="style-9"] .review-strikethrough,
+[data-review-style="style-9"] .review-deletion {
+  text-decoration-color: var(--review-strikethrough-color) !important;
+}
+
+[data-review-style="style-9"] .review-deletion.review-deletion-editing {
+  color: #000 !important;
+}
+
+[data-review-style="style-9"] .review-deletion:not(.review-deletion-editing) {
+  color: #000 !important;
+}
+
+[data-review-style="style-9"].review-editing-dimmed .slate-editor-content .review-leaf {
+  opacity: 0.2;
+}
+
+[data-review-style="style-9"].review-editing-dimmed .slate-editor-content .review-leaf.review-editing-active {
+  opacity: 1;
+}
+
 /* Стиль 8: копия стиля 4, но при редактировании у зачёркнутого текста нет красного фона */
 [data-review-style="style-8"] .review-deletion,
 [data-review-style="style-8"] .review-insertion {
@@ -542,6 +574,17 @@ html, body {
 
 [data-review-style="style-6"] .review-deletion:not(.review-deletion-editing) {
   color: var(--review-strikethrough-color) !important;
+}
+
+/* Обычное удаление текста (backspace/delete) в review mode: всегда серый зачёркнутый текст с серой подложкой. */
+.slate-editor-wrap [data-review-type="deletion"][data-review-deletion-kind="plain-delete"].review-deletion:not(.review-deletion-editing) {
+  color: #6b7280 !important;
+  text-decoration-color: #9ca3af !important;
+  background-color: rgba(156, 163, 175, 0.2) !important;
+}
+
+.slate-editor-wrap [data-review-type="deletion"][data-review-deletion-kind="plain-delete"].review-deletion.review-deletion-editing {
+  background-color: transparent !important;
 }
 
 /* Тулбар рецензии: ховер кнопок серый, иконки чёрные */
