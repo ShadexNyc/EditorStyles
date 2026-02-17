@@ -20,6 +20,7 @@ export function FormattingButtons() {
     <>
       <button
         type="button"
+        className={`ribbon-btn ${isBold ? 'is-active' : ''}`.trim()}
         style={isBold ? activeBtn : ribbonBtn}
         onMouseDown={(e) => { e.preventDefault(); toggleBold(); }}
         title="Жирный"
@@ -28,6 +29,7 @@ export function FormattingButtons() {
       </button>
       <button
         type="button"
+        className={`ribbon-btn ${isItalic ? 'is-active' : ''}`.trim()}
         style={isItalic ? activeBtn : ribbonBtn}
         onMouseDown={(e) => { e.preventDefault(); toggleItalic(); }}
         title="Курсив"
@@ -36,6 +38,7 @@ export function FormattingButtons() {
       </button>
       <button
         type="button"
+        className={`ribbon-btn ${isUnderline ? 'is-active' : ''}`.trim()}
         style={isUnderline ? activeBtn : ribbonBtn}
         onMouseDown={(e) => { e.preventDefault(); toggleUnderline(); }}
         title="Подчёркивание"

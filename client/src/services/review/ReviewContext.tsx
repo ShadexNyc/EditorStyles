@@ -60,7 +60,7 @@ function getUrlPathByStyleId(styleId: string): string {
 }
 
 export const ReviewContext = createContext<ReviewContextValue>({
-  reviewMode: true,
+  reviewMode: false,
   setReviewMode: () => {},
   reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
   currentReviewStyleId: DEFAULT_REVIEW_STYLE_ID,
@@ -68,7 +68,7 @@ export const ReviewContext = createContext<ReviewContextValue>({
 })
 
 export function ReviewProvider({ children }: { children: ReactNode }) {
-  const [reviewMode, setReviewMode] = useState(true)
+  const [reviewMode, setReviewMode] = useState(false)
   const [currentReviewStyleId, setCurrentReviewStyleId] = useState(getReviewStyleIdFromUrl)
 
   useEffect(() => {

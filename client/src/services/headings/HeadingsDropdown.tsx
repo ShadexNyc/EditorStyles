@@ -35,6 +35,7 @@ export function HeadingsDropdown() {
     <div style={{ position: 'relative' }}>
       <button
         type="button"
+        className="ribbon-btn"
         style={ribbonBtn}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((o) => !o)}
