@@ -3,7 +3,6 @@ import { HeadingsDropdown } from '../services/headings/HeadingsDropdown'
 import { FontSizeDropdown } from '../services/fontSize/FontSizeDropdown'
 import { TextColorPicker } from '../services/color/TextColorPicker'
 import { HighlightPicker } from '../services/highlight/HighlightPicker'
-import { ReviewStyleSelect } from '../services/review/ReviewStyleSelect'
 import { ReviewToggle } from '../services/review/ReviewToggle'
 
 export function Ribbon() {
@@ -23,7 +22,6 @@ export function Ribbon() {
         <HighlightPicker />
       </div>
       <div className="ribbon-group" style={{ marginLeft: 'auto' }}>
-        <ReviewStyleSelect />
         <ReviewToggle />
       </div>
     </div>

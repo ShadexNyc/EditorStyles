@@ -60,6 +60,7 @@ export function ReviewToggle() {
   return (
     <button
       type="button"
+      className={`ribbon-btn ${reviewMode ? 'is-active' : ''}`.trim()}
       style={reviewMode ? activeBtn : ribbonBtn}
       onMouseDown={handleMouseDown}
       onClick={handleClick}

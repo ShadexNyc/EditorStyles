@@ -68,7 +68,7 @@ export const ReviewContext = createContext<ReviewContextValue>({
 })
 
 export function ReviewProvider({ children }: { children: ReactNode }) {
-  const [reviewMode, setReviewMode] = useState(true)
+  const [reviewMode, setReviewMode] = useState(false)
   const [currentReviewStyleId, setCurrentReviewStyleId] = useState(getReviewStyleIdFromUrl)
 
   useEffect(() => {
