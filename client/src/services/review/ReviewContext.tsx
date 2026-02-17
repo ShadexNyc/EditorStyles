@@ -59,8 +59,11 @@ function getUrlPathByStyleId(styleId: string): string {
   return `${trailingSlashBase}${styleNumber}`
 }
 
+// БАГ 2 ИСПРАВЛЕН: reviewMode: false (было true) — дефолт контекста должен
+// совпадать с начальным значением useState в ReviewProvider, иначе компоненты
+// вне дерева провайдера (тесты, изолированный рендер) получат некорректное true
 export const ReviewContext = createContext<ReviewContextValue>({
-  reviewMode: true,
+  reviewMode: false,
   setReviewMode: () => {},
   reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
   currentReviewStyleId: DEFAULT_REVIEW_STYLE_ID,
