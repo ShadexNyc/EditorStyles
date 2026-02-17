@@ -60,7 +60,7 @@ function getUrlPathByStyleId(styleId: string): string {
 }
 
 export const ReviewContext = createContext<ReviewContextValue>({
-  reviewMode: false,
+  reviewMode: true,
   setReviewMode: () => {},
   reviewHighlightStyles: REVIEW_HIGHLIGHT_STYLES,
   currentReviewStyleId: DEFAULT_REVIEW_STYLE_ID,
