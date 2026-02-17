@@ -731,6 +731,9 @@ export function SlateEditorBody() {
       acceptHighlightId,
       currentReviewStyleId,
       isAcceptHighlight,
+      // БАГ 1 ИСПРАВЛЕН: overlayEditingId добавлен в deps — без него класс
+      // review-editing-active и dimming style-9 не обновлялись при смене активной рецензии
+      overlayEditingId,
     ]
   )
 
