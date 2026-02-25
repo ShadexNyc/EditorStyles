@@ -43,8 +43,8 @@ function Element({
   onSelectImage: (path: Path) => void
   onResizeStart: (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => void
   acceptHoverImagePathKey: string | null
-  onAcceptImageAction: (path: Path) => void
-  onRejectImageAction: (path: Path) => void
+  onAcceptImageAction: (pathKey: string) => void
+  onRejectImageAction: (pathKey: string) => void
   onAcceptImageHoverChange: (pathKey: string | null) => void
 }) {
   const style: React.CSSProperties = {}
@@ -114,30 +114,15 @@ function Element({
             )}
           </div>
           {reviewMode && isSelectedImage && imageElement.reviewChangeType != null && (
-            <div className="editor-image-review-toolbar" aria-label="Тулбар рецензии изображения">
-              <button
-                type="button"
-                className="editor-image-review-btn"
-                aria-label="Принять правку изображения"
-                onMouseEnter={() => onAcceptImageHoverChange(imagePathKey)}
-                onMouseLeave={() => onAcceptImageHoverChange(null)}
-                onClick={() => onAcceptImageAction(imagePath)}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="editor-image-review-btn"
-                aria-label="Отклонить правку изображения"
-                onClick={() => onRejectImageAction(imagePath)}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <ReviewActionToolbar
+              className="editor-image-review-toolbar"
+              acceptLabel="Принять правку"
+              rejectLabel="Отменить"
+              onAccept={() => onAcceptImageAction(imagePathKey)}
+              onReject={() => onRejectImageAction(imagePathKey)}
+              onAcceptMouseEnter={() => onAcceptImageHoverChange(imagePathKey)}
+              onAcceptMouseLeave={() => onAcceptImageHoverChange(null)}
+            />
           )}
         </div>
         {children}
@@ -383,6 +368,94 @@ function useEditingSuggestionId(): string | null {
   }, [editor, editor.selection])
 }
 
+
+function ReviewActionToolbar({
+  onAccept,
+  onReject,
+  onAcceptMouseEnter,
+  onAcceptMouseLeave,
+  acceptLabel,
+  rejectLabel,
+  className,
+  style,
+}: {
+  onAccept: () => void
+  onReject: () => void
+  onAcceptMouseEnter?: () => void
+  onAcceptMouseLeave?: () => void
+  acceptLabel: string
+  rejectLabel: string
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
+
+  return (
+    <div className={['review-toolbar', className].filter(Boolean).join(' ')} role="toolbar" style={style}>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label={acceptLabel}
+          onMouseEnter={() => {
+            setTooltipVisible('accept')
+            onAcceptMouseEnter?.()
+          }}
+          onMouseLeave={() => {
+            setTooltipVisible(null)
+            onAcceptMouseLeave?.()
+          }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onAccept}
+          className="review-toolbar-btn"
+          style={{
+            padding: 6,
+            border: 'none',
+            borderRadius: 6,
+            background: 'transparent',
+            cursor: 'pointer',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </button>
+        {tooltipVisible === 'accept' && <span className="review-toolbar-tooltip" role="tooltip">{acceptLabel}</span>}
+      </div>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label={rejectLabel}
+          onMouseEnter={() => setTooltipVisible('reject')}
+          onMouseLeave={() => setTooltipVisible(null)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onReject}
+          className="review-toolbar-btn"
+          style={{
+            padding: 6,
+            border: 'none',
+            borderRadius: 6,
+            background: 'transparent',
+            cursor: 'pointer',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+        {tooltipVisible === 'reject' && <span className="review-toolbar-tooltip" role="tooltip">{rejectLabel}</span>}
+      </div>
+    </div>
+  )
+}
+
 type LineRect = { top: number; left: number; width: number; height: number; color: string; rightBorder?: boolean }
 type TopBottomSegment = LineRect & { edge: 'top' | 'bottom' }
 
@@ -410,7 +483,6 @@ function ReviewEditingOverlay({
   const [lineRects, setLineRects] = useState<LineRect[]>([])
   const [style1TopBottom, setStyle1TopBottom] = useState<TopBottomSegment[] | null>(null)
   const [toolbarRect, setToolbarRect] = useState<ToolbarRect | null>(null)
-  const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
   const useVerticalLines = reviewStyleId === 'style-2'
 
   const renderTopBottomSegments = (segments: TopBottomSegment[]) =>
@@ -694,99 +766,42 @@ function ReviewEditingOverlay({
         {style1TopBottom != null &&
           renderTopBottomSegments(style1TopBottom)}
         <div
-          className="review-toolbar"
-          role="toolbar"
           onMouseEnter={() => onToolbarHoverChange?.(true)}
-          onMouseLeave={() => onToolbarHoverChange?.(false)}
+          onMouseLeave={() => {
+            onToolbarHoverChange?.(false)
+            onAcceptHoverChange(false)
+          }}
           style={{
             position: 'absolute',
             top: toolbarRect.top,
             left: toolbarRect.left,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '4px 6px',
-            background: 'var(--color-bg-canvas, #fff)',
-            border: '1px solid var(--color-border-canvas, #d0d0d0)',
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             zIndex: 10,
           }}
         >
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              aria-label="Принять правку"
-              onMouseEnter={() => {
-                onAcceptHoverChange(true)
-                setTooltipVisible('accept')
-              }}
-              onMouseLeave={() => {
-                onAcceptHoverChange(false)
-                setTooltipVisible(null)
-              }}
-              onClick={() => {
-                onAccept()
-                setToolbarRect(null)
-                setTooltipVisible(null)
-              }}
-              className="review-toolbar-btn"
-              style={{
-                padding: 6,
-                border: 'none',
-                borderRadius: 6,
-                background: 'transparent',
-                cursor: 'pointer',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </button>
-            {tooltipVisible === 'accept' && (
-              <span className="review-toolbar-tooltip" role="tooltip">
-                Принять правку
-              </span>
-            )}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              aria-label="Отменить"
-              onMouseEnter={() => setTooltipVisible('reject')}
-              onMouseLeave={() => setTooltipVisible(null)}
-              onClick={() => {
-                onReject()
-                setToolbarRect(null)
-                setTooltipVisible(null)
-              }}
-              className="review-toolbar-btn"
-              style={{
-                padding: 6,
-                border: 'none',
-                borderRadius: 6,
-                background: 'transparent',
-                cursor: 'pointer',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-            {tooltipVisible === 'reject' && (
-              <span className="review-toolbar-tooltip" role="tooltip">
-                Отменить
-              </span>
-            )}
-          </div>
+          <ReviewActionToolbar
+            acceptLabel="Принять правку"
+            rejectLabel="Отменить"
+            onAccept={() => {
+              onAccept()
+              setToolbarRect(null)
+            }}
+            onReject={() => {
+              onReject()
+              setToolbarRect(null)
+            }}
+            onAcceptMouseEnter={() => onAcceptHoverChange(true)}
+            onAcceptMouseLeave={() => onAcceptHoverChange(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 6px',
+              background: 'var(--color-bg-canvas, #fff)',
+              border: '1px solid var(--color-border-canvas, #d0d0d0)',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            }}
+          />
         </div>
       </>
     )
@@ -1012,27 +1027,37 @@ export function SlateEditorBody() {
     )
   }, [editor])
 
-  const handleAcceptImageAction = useCallback((path: Path) => {
-    const [node] = Editor.node(editor, path)
-    if (!SlateElement.isElement(node) || node.type !== 'image') return
-    const imageNode = node as ImageElement
-    if (imageNode.reviewDeleted) {
-      Transforms.removeNodes(editor, { at: path })
-    } else {
-      clearImageReviewMetadata(path)
+  const handleAcceptImageAction = useCallback((pathKey: string) => {
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) !== pathKey) continue
+      const imageNode = node as ImageElement
+      if (imageNode.reviewDeleted) {
+        Transforms.removeNodes(editor, { at: path })
+      } else {
+        clearImageReviewMetadata(path)
+      }
+      break
     }
     setAcceptHoverImagePathKey(null)
     setSelectedImagePathKey(null)
   }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])
 
-  const handleRejectImageAction = useCallback((path: Path) => {
-    const [node] = Editor.node(editor, path)
-    if (!SlateElement.isElement(node) || node.type !== 'image') return
-    const imageNode = node as ImageElement
-    if (imageNode.reviewChangeType === 'resized' && imageNode.reviewPreviousWidth != null) {
-      Transforms.setNodes(editor, { width: imageNode.reviewPreviousWidth } as Partial<ImageElement>, { at: path })
+  const handleRejectImageAction = useCallback((pathKey: string) => {
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) !== pathKey) continue
+      const imageNode = node as ImageElement
+      if (imageNode.reviewChangeType === 'resized' && imageNode.reviewPreviousWidth != null) {
+        Transforms.setNodes(editor, { width: imageNode.reviewPreviousWidth } as Partial<ImageElement>, { at: path })
+      }
+      clearImageReviewMetadata(path)
+      break
     }
-    clearImageReviewMetadata(path)
     setAcceptHoverImagePathKey(null)
     setSelectedImagePathKey(null)
   }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])

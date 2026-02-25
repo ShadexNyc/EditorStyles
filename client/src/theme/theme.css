@@ -196,7 +196,7 @@ html, body {
 .review-comments-bubble-actions .review-comments-toolbar-btn {
   padding: 4px;
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   background: transparent;
   cursor: pointer;
   color: #333;
@@ -318,7 +318,7 @@ html, body {
   --image-review-frame: #64748b;
   position: relative;
   max-width: 100%;
-  border-radius: 6px;
+  border-radius: 2px;
 }
 
 .editor-image-shell.is-review-mode:hover {
@@ -336,7 +336,7 @@ html, body {
   opacity: 0.55;
 }
 .editor-image-shell.is-reviewed-edited {
-  box-shadow: 0 0 0 6px var(--image-review-frame);
+  box-shadow: 0 0 0 4px var(--image-review-frame);
   outline: 1px solid transparent;
   outline-offset: 1px;
 }
@@ -347,7 +347,7 @@ html, body {
   max-width: 100%;
   height: auto;
   border: 1px solid var(--color-border-canvas);
-  border-radius: 6px;
+  border-radius: 2px;
 }
 
 .editor-image-shell.is-review-deleted .editor-image {
@@ -365,31 +365,8 @@ html, body {
 
 
 .editor-image-review-toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   margin-top: 8px;
-  padding: 4px 6px;
-  border: 1px solid var(--color-border-canvas);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.editor-image-review-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--color-border-canvas);
-  border-radius: 6px;
-  background: #fff;
-  color: #374151;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.editor-image-review-btn:hover {
-  background: #f3f4f6;
+  width: fit-content;
 }
 
 .editor-image-handle {

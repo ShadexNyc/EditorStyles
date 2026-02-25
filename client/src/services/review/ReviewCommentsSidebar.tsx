@@ -112,6 +112,7 @@ export function ReviewCommentsSidebar() {
   } = useContext(ReviewCommentsContext)
 
   const suggestions = getSuggestionsList(editor)
+  const [openedImageEventKey, setOpenedImageEventKey] = useState<string | null>(null)
 
   const imageReviewMessages: Array<{
     key: string
@@ -303,47 +304,58 @@ export function ReviewCommentsSidebar() {
             )
           })}
 
-        {imageReviewMessages.map((message) => (
-          <div key={message.key} className="review-comments-bubble-wrap">
-            <div className="review-comments-bubble is-image-event">
-              <div className="review-comments-bubble-header-row">
-                <div className="review-comments-bubble-header" aria-hidden>
-                  <div className="review-comments-avatar" style={{ background: message.authorColor }}>
-                    {getInitials(message.authorName)}
-                  </div>
-                  <div className="review-comments-bubble-content">
-                    <div className="review-comments-author">{message.authorName}</div>
+        {imageReviewMessages.map((message) => {
+          const isOpenImageEvent = openedImageEventKey === message.key
+          return (
+            <div key={message.key} className="review-comments-bubble-wrap">
+              <div className={`review-comments-bubble is-image-event ${isOpenImageEvent ? 'is-open' : ''}`}>
+                <div className="review-comments-bubble-header-row">
+                  <button
+                    type="button"
+                    className="review-comments-bubble-header"
+                    onClick={() => setOpenedImageEventKey(isOpenImageEvent ? null : message.key)}
+                    aria-expanded={isOpenImageEvent}
+                  >
+                    <div className="review-comments-avatar" style={{ background: message.authorColor }}>
+                      {getInitials(message.authorName)}
+                    </div>
+                    <div className="review-comments-bubble-content">
+                      <div className="review-comments-author">{message.authorName}</div>
+                    </div>
+                  </button>
+                  <div className="review-comments-bubble-actions" aria-hidden>
+                    <CommentToolbarButton
+                      tooltip="Принять действие"
+                      onClick={(e) => { e.stopPropagation(); handleAcceptImageAction(message.pathKey) }}
+                      onMouseEnter={() => setAcceptHoverImagePathKey(message.pathKey)}
+                      onMouseLeave={() => setAcceptHoverImagePathKey(null)}
+                      ariaLabel="Принять действие"
+                      iconAccept
+                    />
+                    <CommentToolbarButton
+                      tooltip="Отменить действие"
+                      onClick={(e) => { e.stopPropagation(); handleRejectImageAction(message.pathKey) }}
+                      ariaLabel="Отменить действие"
+                      iconReject
+                    />
                   </div>
                 </div>
-              </div>
-              <div className="review-comments-action">{message.action}</div>
-              <div className="review-comments-bubble-actions" aria-hidden>
-                <CommentToolbarButton
-                  tooltip="Принять действие"
-                  onClick={(e) => { e.stopPropagation(); handleAcceptImageAction(message.pathKey) }}
-                  onMouseEnter={() => setAcceptHoverImagePathKey(message.pathKey)}
-                  onMouseLeave={() => setAcceptHoverImagePathKey(null)}
-                  ariaLabel="Принять действие"
-                  iconAccept
-                />
-                <CommentToolbarButton
-                  tooltip="Отменить действие"
-                  onClick={(e) => { e.stopPropagation(); handleRejectImageAction(message.pathKey) }}
-                  ariaLabel="Отменить действие"
-                  iconReject
-                />
-              </div>
-              <div className="review-comments-card">
-                <input
-                  type="text"
-                  className="review-comments-input"
-                  defaultValue={message.comment}
-                  aria-label="Комментарий к действию с изображением"
-                />
+                <div className="review-comments-action">{message.action}</div>
+                {isOpenImageEvent && (
+                  <div className="review-comments-card">
+                    <input
+                      type="text"
+                      className="review-comments-input"
+                      defaultValue={message.comment}
+                      placeholder="оставить комментарий"
+                      aria-label="Комментарий к действию с изображением"
+                    />
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </aside>
   )
