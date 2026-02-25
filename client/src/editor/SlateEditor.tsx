@@ -1,20 +1,97 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Editor, Descendant, Element as SlateElement, Node, Text as SlateText } from 'slate'
-import { Editable, useSlate } from 'slate-react'
+import { Editor, Descendant, Element as SlateElement, Node, Path, Text as SlateText, Transforms } from 'slate'
+import { Editable, ReactEditor, useSlate, useSlateStatic } from 'slate-react'
 import type { RenderElementProps, RenderLeafProps } from 'slate-react'
-import type { FormattedText } from '../types/slate'
+import type { FormattedText, ImageElement } from '../types/slate'
 import { useReview } from '../services/review/ReviewContext'
 import { ReviewCommentsContext } from '../services/review/ReviewCommentsContext'
+import { DocumentContext } from '../storage/DocumentContext'
 import { acceptSuggestion, rejectSuggestion } from './commitReview'
 
-function Element({ attributes, children, element }: RenderElementProps) {
+function getPathKey(path: Path): string {
+  return path.join('.')
+}
+
+function ImageDeletionOverlay() {
+  return (
+    <div className="editor-image-deletion-overlay" aria-hidden>
+      <svg width="62" height="62" viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 16L46 46" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+        <path d="M46 16L16 46" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+        <path d="M16 16L46 46" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+        <path d="M46 16L16 46" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+      </svg>
+    </div>
+  )
+}
+
+function Element({
+  attributes,
+  children,
+  element,
+  selectedImagePathKey,
+  reviewMode,
+  onSelectImage,
+  onResizeImage,
+}: RenderElementProps & {
+  selectedImagePathKey: string | null
+  reviewMode: boolean
+  onSelectImage: (path: Path) => void
+  onResizeImage: (path: Path, widthPercent: number) => void
+}) {
   const style: React.CSSProperties = {}
 
   if (element.type === 'image') {
+    const editor = useSlateStatic() as ReactEditor
+    const imageElement = element as ImageElement
+    const imagePath = ReactEditor.findPath(editor, element)
+    const imagePathKey = getPathKey(imagePath)
+    const isSelectedImage = selectedImagePathKey === imagePathKey
+    const widthPercent = Math.max(25, Math.min(100, imageElement.width ?? 100))
+    const frameColor = imageElement.reviewFrameColor ?? '#64748b'
+
     return (
       <div {...attributes} className="editor-image-block">
         <div contentEditable={false}>
-          <img src={element.url} alt={element.alt} className="editor-image" />
+          <div
+            className={[
+              'editor-image-shell',
+              imageElement.reviewEdited ? 'is-reviewed-edited' : '',
+              imageElement.reviewDeleted ? 'is-review-deleted' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ width: `${widthPercent}%`, ['--image-review-frame' as string]: frameColor }}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onSelectImage(imagePath)
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Выбрать изображение"
+          >
+            <img src={imageElement.url} alt={imageElement.alt} className="editor-image" draggable={false} />
+            {imageElement.reviewDeleted && <ImageDeletionOverlay />}
+            {reviewMode && isSelectedImage && !imageElement.reviewDeleted && (
+              <div className="editor-image-resize-controls" aria-label="Контролы изменения размера">
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onResizeImage(imagePath, widthPercent - 5)}>
+                  −
+                </button>
+                <input
+                  type="range"
+                  min={25}
+                  max={100}
+                  step={1}
+                  value={widthPercent}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onChange={(event) => onResizeImage(imagePath, Number(event.target.value))}
+                />
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onResizeImage(imagePath, widthPercent + 5)}>
+                  +
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         {children}
       </div>
@@ -679,12 +756,14 @@ export function SlateEditorBody() {
   const editor = useSlate()
   const editingSuggestionId = useEditingSuggestionId()
   const { currentReviewStyleId, reviewMode } = useReview()
+  const { users, currentUserId } = useContext(DocumentContext)
   const { fromSidebar, setFromSidebar, openedSuggestionId, acceptHoverSuggestionId } = useContext(
     ReviewCommentsContext
   )
   const wrapRef = useRef<HTMLDivElement>(null)
   const [acceptHover, setAcceptHover] = useState(false)
   const [isToolbarHovered, setIsToolbarHovered] = useState(false)
+  const [selectedImagePathKey, setSelectedImagePathKey] = useState<string | null>(null)
 
   const exitedSuggestionIdsRef = useRef<Set<string>>(new Set())
   const lastStickySuggestionIdRef = useRef<string | null>(null)
@@ -736,11 +815,73 @@ export function SlateEditorBody() {
     if (overlayEditingId === null) setIsToolbarHovered(false)
   }, [overlayEditingId])
 
+  const currentUserColor = users.find((user) => user.id === currentUserId)?.color ?? '#64748b'
+
+  const handleSelectImage = useCallback((path: Path) => {
+    setSelectedImagePathKey(getPathKey(path))
+    Transforms.select(editor, path)
+  }, [editor])
+
+  const handleResizeImage = useCallback((path: Path, widthPercent: number) => {
+    const clampedWidth = Math.max(25, Math.min(100, widthPercent))
+    Transforms.setNodes(
+      editor,
+      {
+        width: clampedWidth,
+        reviewEdited: true,
+        reviewFrameColor: currentUserColor,
+      } as Partial<ImageElement>,
+      { at: path }
+    )
+  }, [currentUserColor, editor])
+
+  const handleImageDelete = useCallback(() => {
+    if (selectedImagePathKey == null) return false
+    let imagePath: Path | null = null
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) === selectedImagePathKey) {
+        imagePath = path
+        const imageNode = node as ImageElement
+        if (reviewMode && !imageNode.reviewDeleted) {
+          Transforms.setNodes(
+            editor,
+            {
+              reviewDeleted: true,
+              reviewEdited: true,
+              reviewFrameColor: currentUserColor,
+            } as Partial<ImageElement>,
+            { at: path }
+          )
+        } else {
+          Transforms.removeNodes(editor, { at: path })
+          setSelectedImagePathKey(null)
+        }
+        return true
+      }
+    }
+    if (imagePath == null) setSelectedImagePathKey(null)
+    return false
+  }, [currentUserColor, editor, reviewMode, selectedImagePathKey])
+
   const showToolbar =
     overlayEditingId != null &&
     exitedSuggestionIdsRef.current.has(overlayEditingId) &&
     !fromSidebar
-  const renderElement = useCallback((props: RenderElementProps) => <Element {...props} />, [])
+  const renderElement = useCallback(
+    (props: RenderElementProps) => (
+      <Element
+        {...props}
+        selectedImagePathKey={selectedImagePathKey}
+        reviewMode={reviewMode}
+        onSelectImage={handleSelectImage}
+        onResizeImage={handleResizeImage}
+      />
+    ),
+    [handleResizeImage, handleSelectImage, reviewMode, selectedImagePathKey]
+  )
   const sidebarEditingSuggestionId =
     fromSidebar && openedSuggestionId != null ? openedSuggestionId : null
   const renderLeaf = useCallback(
@@ -796,13 +937,22 @@ export function SlateEditorBody() {
         ref={editableWrapRef}
         className="slate-editor-content"
         style={{ minHeight: '100%' }}
-        onMouseDown={() => setFromSidebar(false)}
+        onMouseDown={(event) => {
+          setFromSidebar(false)
+          const target = event.target as HTMLElement
+          if (target.closest('.editor-image-shell') == null) setSelectedImagePathKey(null)
+        }}
       >
         <Editable
           renderElement={renderElement}
           renderLeaf={renderLeaf}
           placeholder="Введите текст..."
           spellCheck
+          onKeyDown={(event) => {
+            if ((event.key === 'Backspace' || event.key === 'Delete') && handleImageDelete()) {
+              event.preventDefault()
+            }
+          }}
           style={{
             fontFamily: 'var(--font-family)',
             fontSize: 'var(--font-size-default)',

@@ -314,6 +314,19 @@ html, body {
   margin: 16px 0 18px;
 }
 
+.editor-image-shell {
+  --image-review-frame: #64748b;
+  position: relative;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.editor-image-shell.is-reviewed-edited {
+  box-shadow: 0 0 0 6px var(--image-review-frame);
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+}
+
 .editor-image {
   display: block;
   width: 100%;
@@ -321,6 +334,47 @@ html, body {
   height: auto;
   border: 1px solid var(--color-border-canvas);
   border-radius: 6px;
+}
+
+.editor-image-shell.is-review-deleted .editor-image {
+  opacity: 0.4;
+}
+
+.editor-image-deletion-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.editor-image-resize-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 8px;
+}
+
+.editor-image-resize-controls button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+}
+
+.editor-image-resize-controls input[type="range"] {
+  width: 140px;
 }
 
 .editor-table-wrap {

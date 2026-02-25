@@ -16,6 +16,10 @@ export interface ImageElement extends BaseElement {
   type: 'image'
   url: string
   alt: string
+  width?: number
+  reviewEdited?: boolean
+  reviewFrameColor?: string
+  reviewDeleted?: boolean
   children: Descendant[]
 }
 
