@@ -363,6 +363,35 @@ html, body {
   pointer-events: none;
 }
 
+
+.editor-image-review-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.editor-image-review-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.editor-image-review-btn:hover {
+  background: #f3f4f6;
+}
+
 .editor-image-handle {
   position: absolute;
   width: 6px;

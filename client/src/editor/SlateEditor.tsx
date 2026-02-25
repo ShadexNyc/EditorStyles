@@ -34,12 +34,18 @@ function Element({
   onSelectImage,
   onResizeStart,
   acceptHoverImagePathKey,
+  onAcceptImageAction,
+  onRejectImageAction,
+  onAcceptImageHoverChange,
 }: RenderElementProps & {
   selectedImagePathKey: string | null
   reviewMode: boolean
   onSelectImage: (path: Path) => void
   onResizeStart: (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => void
   acceptHoverImagePathKey: string | null
+  onAcceptImageAction: (path: Path) => void
+  onRejectImageAction: (path: Path) => void
+  onAcceptImageHoverChange: (pathKey: string | null) => void
 }) {
   const style: React.CSSProperties = {}
 
@@ -107,6 +113,32 @@ function Element({
               </>
             )}
           </div>
+          {reviewMode && isSelectedImage && imageElement.reviewChangeType != null && (
+            <div className="editor-image-review-toolbar" aria-label="Тулбар рецензии изображения">
+              <button
+                type="button"
+                className="editor-image-review-btn"
+                aria-label="Принять правку изображения"
+                onMouseEnter={() => onAcceptImageHoverChange(imagePathKey)}
+                onMouseLeave={() => onAcceptImageHoverChange(null)}
+                onClick={() => onAcceptImageAction(imagePath)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="editor-image-review-btn"
+                aria-label="Отклонить правку изображения"
+                onClick={() => onRejectImageAction(imagePath)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
         {children}
       </div>
@@ -778,6 +810,7 @@ export function SlateEditorBody() {
     openedSuggestionId,
     acceptHoverSuggestionId,
     acceptHoverImagePathKey,
+    setAcceptHoverImagePathKey,
   } = useContext(ReviewCommentsContext)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [acceptHover, setAcceptHover] = useState(false)
@@ -961,6 +994,49 @@ export function SlateEditorBody() {
     return false
   }, [currentUserColor, currentUserId, editor, reviewMode, selectedImagePathKey])
 
+  const clearImageReviewMetadata = useCallback((path: Path) => {
+    Transforms.unsetNodes(
+      editor,
+      [
+        'reviewEdited',
+        'reviewFrameColor',
+        'reviewDeleted',
+        'reviewChangeType',
+        'reviewAuthorId',
+        'reviewAuthorColor',
+        'reviewChangeAt',
+        'reviewComment',
+        'reviewPreviousWidth',
+      ],
+      { at: path }
+    )
+  }, [editor])
+
+  const handleAcceptImageAction = useCallback((path: Path) => {
+    const [node] = Editor.node(editor, path)
+    if (!SlateElement.isElement(node) || node.type !== 'image') return
+    const imageNode = node as ImageElement
+    if (imageNode.reviewDeleted) {
+      Transforms.removeNodes(editor, { at: path })
+    } else {
+      clearImageReviewMetadata(path)
+    }
+    setAcceptHoverImagePathKey(null)
+    setSelectedImagePathKey(null)
+  }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])
+
+  const handleRejectImageAction = useCallback((path: Path) => {
+    const [node] = Editor.node(editor, path)
+    if (!SlateElement.isElement(node) || node.type !== 'image') return
+    const imageNode = node as ImageElement
+    if (imageNode.reviewChangeType === 'resized' && imageNode.reviewPreviousWidth != null) {
+      Transforms.setNodes(editor, { width: imageNode.reviewPreviousWidth } as Partial<ImageElement>, { at: path })
+    }
+    clearImageReviewMetadata(path)
+    setAcceptHoverImagePathKey(null)
+    setSelectedImagePathKey(null)
+  }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])
+
   const showToolbar =
     overlayEditingId != null &&
     exitedSuggestionIdsRef.current.has(overlayEditingId) &&
@@ -974,9 +1050,21 @@ export function SlateEditorBody() {
         onSelectImage={handleSelectImage}
         onResizeStart={handleResizeStart}
         acceptHoverImagePathKey={acceptHoverImagePathKey}
+        onAcceptImageAction={handleAcceptImageAction}
+        onRejectImageAction={handleRejectImageAction}
+        onAcceptImageHoverChange={setAcceptHoverImagePathKey}
       />
     ),
-    [acceptHoverImagePathKey, handleResizeStart, handleSelectImage, reviewMode, selectedImagePathKey]
+    [
+      acceptHoverImagePathKey,
+      handleAcceptImageAction,
+      handleRejectImageAction,
+      handleResizeStart,
+      handleSelectImage,
+      reviewMode,
+      selectedImagePathKey,
+      setAcceptHoverImagePathKey,
+    ]
   )
   const sidebarEditingSuggestionId =
     fromSidebar && openedSuggestionId != null ? openedSuggestionId : null
