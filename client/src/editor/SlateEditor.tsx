@@ -33,11 +33,13 @@ function Element({
   reviewMode,
   onSelectImage,
   onResizeStart,
+  acceptHoverImagePathKey,
 }: RenderElementProps & {
   selectedImagePathKey: string | null
   reviewMode: boolean
   onSelectImage: (path: Path) => void
   onResizeStart: (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => void
+  acceptHoverImagePathKey: string | null
 }) {
   const style: React.CSSProperties = {}
 
@@ -49,6 +51,7 @@ function Element({
     const isSelectedImage = selectedImagePathKey === imagePathKey
     const widthPercent = Math.max(25, Math.min(100, imageElement.width ?? 100))
     const frameColor = imageElement.reviewFrameColor ?? '#64748b'
+    const isAcceptHoverImage = acceptHoverImagePathKey === imagePathKey
 
     return (
       <div {...attributes} className="editor-image-block">
@@ -59,6 +62,7 @@ function Element({
               imageElement.reviewEdited ? 'is-reviewed-edited' : '',
               imageElement.reviewDeleted ? 'is-review-deleted' : '',
               reviewMode ? 'is-review-mode' : '',
+              isAcceptHoverImage ? 'is-accept-hover' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -66,6 +70,7 @@ function Element({
             onMouseDown={(event) => {
               event.preventDefault()
               onSelectImage(imagePath)
+              ReactEditor.focus(editor)
             }}
             role="button"
             tabIndex={0}
@@ -767,9 +772,13 @@ export function SlateEditorBody() {
   const editingSuggestionId = useEditingSuggestionId()
   const { currentReviewStyleId, reviewMode } = useReview()
   const { users, currentUserId } = useContext(DocumentContext)
-  const { fromSidebar, setFromSidebar, openedSuggestionId, acceptHoverSuggestionId } = useContext(
-    ReviewCommentsContext
-  )
+  const {
+    fromSidebar,
+    setFromSidebar,
+    openedSuggestionId,
+    acceptHoverSuggestionId,
+    acceptHoverImagePathKey,
+  } = useContext(ReviewCommentsContext)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [acceptHover, setAcceptHover] = useState(false)
   const [isToolbarHovered, setIsToolbarHovered] = useState(false)
@@ -898,7 +907,8 @@ export function SlateEditorBody() {
             reviewAuthorId: currentUserId,
             reviewAuthorColor: currentUserColor,
             reviewChangeAt: Date.now(),
-            reviewComment: 'Комментарий: изменён размер изображения',
+            reviewComment: '',
+            reviewPreviousWidth: drag.startWidth,
           } as Partial<ImageElement>,
           { at: drag.path }
         )
@@ -935,7 +945,8 @@ export function SlateEditorBody() {
               reviewAuthorId: currentUserId,
               reviewAuthorColor: currentUserColor,
               reviewChangeAt: Date.now(),
-            reviewComment: 'Комментарий: изображение удалено',
+              reviewComment: '',
+              reviewPreviousWidth: imageNode.width ?? 100,
             } as Partial<ImageElement>,
             { at: path }
           )
@@ -962,9 +973,10 @@ export function SlateEditorBody() {
         reviewMode={reviewMode}
         onSelectImage={handleSelectImage}
         onResizeStart={handleResizeStart}
+        acceptHoverImagePathKey={acceptHoverImagePathKey}
       />
     ),
-    [handleResizeStart, handleSelectImage, reviewMode, selectedImagePathKey]
+    [acceptHoverImagePathKey, handleResizeStart, handleSelectImage, reviewMode, selectedImagePathKey]
   )
   const sidebarEditingSuggestionId =
     fromSidebar && openedSuggestionId != null ? openedSuggestionId : null

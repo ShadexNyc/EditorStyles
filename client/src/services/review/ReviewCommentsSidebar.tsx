@@ -1,7 +1,7 @@
 import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSlate } from 'slate-react'
-import { Editor, Element as SlateElement } from 'slate'
+import { Editor, Element as SlateElement, Transforms } from 'slate'
 import { acceptSuggestion, getSuggestionsList, rejectSuggestion } from '../../editor/commitReview'
 import { DocumentContext } from '../../storage/DocumentContext'
 import type { ImageElement } from '../../types/slate'
@@ -103,13 +103,19 @@ function renderAction(deletionText: string, insertionText: string) {
 export function ReviewCommentsSidebar() {
   const editor = useSlate()
   const { users } = useContext(DocumentContext)
-  const { setFromSidebar, setOpenedSuggestionId, openedSuggestionId, setAcceptHoverSuggestionId } =
-    useContext(ReviewCommentsContext)
+  const {
+    setFromSidebar,
+    setOpenedSuggestionId,
+    openedSuggestionId,
+    setAcceptHoverSuggestionId,
+    setAcceptHoverImagePathKey,
+  } = useContext(ReviewCommentsContext)
 
   const suggestions = getSuggestionsList(editor)
 
   const imageReviewMessages: Array<{
     key: string
+    pathKey: string
     authorName: string
     authorColor: string
     action: string
@@ -129,10 +135,11 @@ export function ReviewCommentsSidebar() {
     const action = imageNode.reviewChangeType === 'deleted' ? 'Удалено изображение' : 'Изменён размер изображения'
     imageReviewMessages.push({
       key: `${path.join('.')}-${imageNode.reviewChangeAt ?? 0}`,
+      pathKey: path.join('.'),
       authorName,
       authorColor: imageNode.reviewAuthorColor ?? '#64748b',
       action,
-      comment: imageNode.reviewComment ?? 'Комментарий: действие с изображением выполнено',
+      comment: imageNode.reviewComment ?? '',
       changedAt: imageNode.reviewChangeAt ?? 0,
     })
   }
@@ -162,6 +169,73 @@ export function ReviewCommentsSidebar() {
       rejectSuggestion(editor, suggestionId)
     },
     [editor]
+  )
+
+  const handleAcceptImageAction = useCallback(
+    (pathKey: string) => {
+      for (const [node, path] of Editor.nodes(editor, {
+        at: [],
+        match: (n) => SlateElement.isElement(n) && n.type === 'image',
+      })) {
+        if (path.join('.') !== pathKey) continue
+        const imageNode = node as ImageElement
+        if (imageNode.reviewDeleted) {
+          Transforms.removeNodes(editor, { at: path })
+        } else {
+          Transforms.unsetNodes(
+            editor,
+            [
+              'reviewEdited',
+              'reviewFrameColor',
+              'reviewDeleted',
+              'reviewChangeType',
+              'reviewAuthorId',
+              'reviewAuthorColor',
+              'reviewChangeAt',
+              'reviewComment',
+              'reviewPreviousWidth',
+            ],
+            { at: path }
+          )
+        }
+        break
+      }
+      setAcceptHoverImagePathKey(null)
+    },
+    [editor, setAcceptHoverImagePathKey]
+  )
+
+  const handleRejectImageAction = useCallback(
+    (pathKey: string) => {
+      for (const [node, path] of Editor.nodes(editor, {
+        at: [],
+        match: (n) => SlateElement.isElement(n) && n.type === 'image',
+      })) {
+        if (path.join('.') !== pathKey) continue
+        const imageNode = node as ImageElement
+        if (imageNode.reviewChangeType === 'resized' && imageNode.reviewPreviousWidth != null) {
+          Transforms.setNodes(editor, { width: imageNode.reviewPreviousWidth } as Partial<ImageElement>, { at: path })
+        }
+        Transforms.unsetNodes(
+          editor,
+          [
+            'reviewEdited',
+            'reviewFrameColor',
+            'reviewDeleted',
+            'reviewChangeType',
+            'reviewAuthorId',
+            'reviewAuthorColor',
+            'reviewChangeAt',
+            'reviewComment',
+            'reviewPreviousWidth',
+          ],
+          { at: path }
+        )
+        break
+      }
+      setAcceptHoverImagePathKey(null)
+    },
+    [editor, setAcceptHoverImagePathKey]
   )
 
   return (
@@ -243,6 +317,22 @@ export function ReviewCommentsSidebar() {
                 </div>
               </div>
               <div className="review-comments-action">{message.action}</div>
+              <div className="review-comments-bubble-actions" aria-hidden>
+                <CommentToolbarButton
+                  tooltip="Принять действие"
+                  onClick={(e) => { e.stopPropagation(); handleAcceptImageAction(message.pathKey) }}
+                  onMouseEnter={() => setAcceptHoverImagePathKey(message.pathKey)}
+                  onMouseLeave={() => setAcceptHoverImagePathKey(null)}
+                  ariaLabel="Принять действие"
+                  iconAccept
+                />
+                <CommentToolbarButton
+                  tooltip="Отменить действие"
+                  onClick={(e) => { e.stopPropagation(); handleRejectImageAction(message.pathKey) }}
+                  ariaLabel="Отменить действие"
+                  iconReject
+                />
+              </div>
               <div className="review-comments-card">
                 <input
                   type="text"

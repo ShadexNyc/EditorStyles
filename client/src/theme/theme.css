@@ -327,6 +327,14 @@ html, body {
   outline-offset: 1px;
 }
 
+
+.editor-image-shell.is-accept-hover {
+  background-color: rgba(34, 197, 94, 0.25);
+}
+
+.editor-image-shell.is-accept-hover .editor-image {
+  opacity: 0.55;
+}
 .editor-image-shell.is-reviewed-edited {
   box-shadow: 0 0 0 6px var(--image-review-frame);
   outline: 1px solid transparent;
