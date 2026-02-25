@@ -9,6 +9,36 @@ import { acceptSuggestion, rejectSuggestion } from './commitReview'
 
 function Element({ attributes, children, element }: RenderElementProps) {
   const style: React.CSSProperties = {}
+
+  if (element.type === 'image') {
+    return (
+      <div {...attributes} className="editor-image-block">
+        <div contentEditable={false}>
+          <img src={element.url} alt={element.alt} className="editor-image" />
+        </div>
+        {children}
+      </div>
+    )
+  }
+
+  if (element.type === 'table') {
+    return (
+      <div {...attributes} className="editor-table-wrap">
+        <table className="editor-table">
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    )
+  }
+
+  if (element.type === 'table-row') {
+    return <tr {...attributes}>{children}</tr>
+  }
+
+  if (element.type === 'table-cell') {
+    return <td {...attributes}>{children}</td>
+  }
+
   if (element.type === 'paragraph') {
     style.marginBottom = '0.75em'
   }
