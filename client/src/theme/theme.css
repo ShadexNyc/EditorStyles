@@ -309,6 +309,147 @@ html, body {
   color: var(--color-text);
 }
 
+
+.editor-image-block {
+  margin: 16px 0 18px;
+}
+
+.editor-image-shell {
+  --image-review-frame: #64748b;
+  position: relative;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.editor-image-shell.is-review-mode:hover {
+  box-shadow: 0 0 0 1px #2563eb;
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+}
+
+
+.editor-image-shell.is-accept-hover {
+  background-color: rgba(34, 197, 94, 0.25);
+}
+
+.editor-image-shell.is-accept-hover .editor-image {
+  opacity: 0.55;
+}
+.editor-image-shell.is-reviewed-edited {
+  box-shadow: 0 0 0 6px var(--image-review-frame);
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+}
+
+.editor-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 6px;
+}
+
+.editor-image-shell.is-review-deleted .editor-image {
+  opacity: 0.4;
+}
+
+.editor-image-deletion-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+
+.editor-image-review-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.editor-image-review-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border-canvas);
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.editor-image-review-btn:hover {
+  background: #f3f4f6;
+}
+
+.editor-image-handle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border: 1px solid #1e3a8a;
+  border-radius: 1px;
+  z-index: 2;
+}
+
+.editor-image-handle.is-top-left {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.editor-image-handle.is-top-right {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.editor-image-handle.is-bottom-left {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.editor-image-handle.is-bottom-right {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+.review-comments-bubble.is-image-event .review-comments-bubble-header {
+  width: 100%;
+  cursor: default;
+}
+
+.editor-table-wrap {
+  margin: 12px 0 8px;
+  overflow-x: auto;
+}
+
+.editor-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.editor-table td {
+  border: 1px solid var(--color-border-canvas);
+  padding: 8px 6px;
+  vertical-align: top;
+  word-break: break-word;
+}
+
 .ribbon {
   display: flex;
   flex-wrap: wrap;
