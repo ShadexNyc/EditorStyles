@@ -109,7 +109,7 @@ export function ReviewCommentsSidebar() {
   const suggestions = getSuggestionsList(editor)
 
   const imageReviewMessages = useMemo(() => {
-    const messages: Array<{ key: string; authorName: string; authorColor: string; action: string; changedAt: number }> = []
+    const messages: Array<{ key: string; authorName: string; authorColor: string; action: string; comment: string; changedAt: number }> = []
     for (const [node, path] of Editor.nodes(editor, {
       at: [],
       match: (n) => SlateElement.isElement(n) && n.type === 'image',
@@ -125,6 +125,7 @@ export function ReviewCommentsSidebar() {
         authorName,
         authorColor: imageNode.reviewAuthorColor ?? '#64748b',
         action,
+        comment: imageNode.reviewComment ?? 'Комментарий: действие с изображением выполнено',
         changedAt: imageNode.reviewChangeAt ?? 0,
       })
     }
@@ -236,6 +237,14 @@ export function ReviewCommentsSidebar() {
                 </div>
               </div>
               <div className="review-comments-action">{message.action}</div>
+              <div className="review-comments-card">
+                <input
+                  type="text"
+                  className="review-comments-input"
+                  defaultValue={message.comment}
+                  aria-label="Комментарий к действию с изображением"
+                />
+              </div>
             </div>
           </div>
         ))}

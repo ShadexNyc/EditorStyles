@@ -898,6 +898,7 @@ export function SlateEditorBody() {
             reviewAuthorId: currentUserId,
             reviewAuthorColor: currentUserColor,
             reviewChangeAt: Date.now(),
+            reviewComment: 'Комментарий: изменён размер изображения',
           } as Partial<ImageElement>,
           { at: drag.path }
         )
@@ -934,6 +935,7 @@ export function SlateEditorBody() {
               reviewAuthorId: currentUserId,
               reviewAuthorColor: currentUserColor,
               reviewChangeAt: Date.now(),
+            reviewComment: 'Комментарий: изображение удалено',
             } as Partial<ImageElement>,
             { at: path }
           )

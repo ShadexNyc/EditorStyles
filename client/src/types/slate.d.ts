@@ -24,6 +24,7 @@ export interface ImageElement extends BaseElement {
   reviewAuthorId?: string
   reviewAuthorColor?: string
   reviewChangeAt?: number
+  reviewComment?: string
   children: Descendant[]
 }
 
