@@ -20,6 +20,10 @@ export interface ImageElement extends BaseElement {
   reviewEdited?: boolean
   reviewFrameColor?: string
   reviewDeleted?: boolean
+  reviewChangeType?: 'resized' | 'deleted'
+  reviewAuthorId?: string
+  reviewAuthorColor?: string
+  reviewChangeAt?: number
   children: Descendant[]
 }
 

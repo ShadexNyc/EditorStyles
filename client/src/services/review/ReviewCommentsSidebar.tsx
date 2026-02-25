@@ -1,8 +1,10 @@
-import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSlate } from 'slate-react'
+import { Editor, Element as SlateElement } from 'slate'
 import { acceptSuggestion, getSuggestionsList, rejectSuggestion } from '../../editor/commitReview'
 import { DocumentContext } from '../../storage/DocumentContext'
+import type { ImageElement } from '../../types/slate'
 import { getInitials } from '../users/users'
 import { ReviewCommentsContext } from './ReviewCommentsContext'
 
@@ -106,6 +108,30 @@ export function ReviewCommentsSidebar() {
 
   const suggestions = getSuggestionsList(editor)
 
+  const imageReviewMessages = useMemo(() => {
+    const messages: Array<{ key: string; authorName: string; authorColor: string; action: string; changedAt: number }> = []
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      const imageNode = node as ImageElement
+      if (imageNode.reviewChangeType == null) continue
+      const authorName = imageNode.reviewAuthorId
+        ? users.find((u) => u.id === imageNode.reviewAuthorId)?.name ?? 'Автор'
+        : 'Автор'
+      const action = imageNode.reviewChangeType === 'deleted' ? 'Удалено изображение' : 'Изменён размер изображения'
+      messages.push({
+        key: `${path.join('.')}-${imageNode.reviewChangeAt ?? 0}`,
+        authorName,
+        authorColor: imageNode.reviewAuthorColor ?? '#64748b',
+        action,
+        changedAt: imageNode.reviewChangeAt ?? 0,
+      })
+    }
+    messages.sort((a, b) => b.changedAt - a.changedAt)
+    return messages
+  }, [editor, users])
+
   const openBubble = useCallback(
     (id: string) => {
       setFromSidebar(true)
@@ -195,6 +221,24 @@ export function ReviewCommentsSidebar() {
               </div>
             )
           })}
+
+        {imageReviewMessages.map((message) => (
+          <div key={message.key} className="review-comments-bubble-wrap">
+            <div className="review-comments-bubble is-image-event">
+              <div className="review-comments-bubble-header-row">
+                <div className="review-comments-bubble-header" aria-hidden>
+                  <div className="review-comments-avatar" style={{ background: message.authorColor }}>
+                    {getInitials(message.authorName)}
+                  </div>
+                  <div className="review-comments-bubble-content">
+                    <div className="review-comments-author">{message.authorName}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="review-comments-action">{message.action}</div>
+            </div>
+          </div>
+        ))}
       </div>
     </aside>
   )

@@ -32,12 +32,12 @@ function Element({
   selectedImagePathKey,
   reviewMode,
   onSelectImage,
-  onResizeImage,
+  onResizeStart,
 }: RenderElementProps & {
   selectedImagePathKey: string | null
   reviewMode: boolean
   onSelectImage: (path: Path) => void
-  onResizeImage: (path: Path, widthPercent: number) => void
+  onResizeStart: (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => void
 }) {
   const style: React.CSSProperties = {}
 
@@ -58,6 +58,7 @@ function Element({
               'editor-image-shell',
               imageElement.reviewEdited ? 'is-reviewed-edited' : '',
               imageElement.reviewDeleted ? 'is-review-deleted' : '',
+              reviewMode ? 'is-review-mode' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -73,23 +74,32 @@ function Element({
             <img src={imageElement.url} alt={imageElement.alt} className="editor-image" draggable={false} />
             {imageElement.reviewDeleted && <ImageDeletionOverlay />}
             {reviewMode && isSelectedImage && !imageElement.reviewDeleted && (
-              <div className="editor-image-resize-controls" aria-label="Контролы изменения размера">
-                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onResizeImage(imagePath, widthPercent - 5)}>
-                  −
-                </button>
-                <input
-                  type="range"
-                  min={25}
-                  max={100}
-                  step={1}
-                  value={widthPercent}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onChange={(event) => onResizeImage(imagePath, Number(event.target.value))}
+              <>
+                <button
+                  type="button"
+                  className="editor-image-handle is-top-left"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'left')}
+                  aria-label="Изменить размер изображения"
                 />
-                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onResizeImage(imagePath, widthPercent + 5)}>
-                  +
-                </button>
-              </div>
+                <button
+                  type="button"
+                  className="editor-image-handle is-top-right"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'right')}
+                  aria-label="Изменить размер изображения"
+                />
+                <button
+                  type="button"
+                  className="editor-image-handle is-bottom-left"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'left')}
+                  aria-label="Изменить размер изображения"
+                />
+                <button
+                  type="button"
+                  className="editor-image-handle is-bottom-right"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'right')}
+                  aria-label="Изменить размер изображения"
+                />
+              </>
             )}
           </div>
         </div>
@@ -765,6 +775,16 @@ export function SlateEditorBody() {
   const [isToolbarHovered, setIsToolbarHovered] = useState(false)
   const [selectedImagePathKey, setSelectedImagePathKey] = useState<string | null>(null)
 
+  const resizeDragRef = useRef<{
+    path: Path
+    pathKey: string
+    direction: 'left' | 'right'
+    startX: number
+    startWidth: number
+    containerWidth: number
+    changed: boolean
+  } | null>(null)
+
   const exitedSuggestionIdsRef = useRef<Set<string>>(new Set())
   const lastStickySuggestionIdRef = useRef<string | null>(null)
   const prevEditingSuggestionIdRef = useRef<string | null>(null)
@@ -828,12 +848,70 @@ export function SlateEditorBody() {
       editor,
       {
         width: clampedWidth,
-        reviewEdited: true,
-        reviewFrameColor: currentUserColor,
       } as Partial<ImageElement>,
       { at: path }
     )
-  }, [currentUserColor, editor])
+  }, [editor])
+
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => {
+      event.preventDefault()
+      event.stopPropagation()
+      const shell = (event.currentTarget as HTMLElement).closest('.editor-image-shell') as HTMLElement | null
+      const wrapper = (event.currentTarget as HTMLElement).closest('.slate-editor-content') as HTMLElement | null
+      const currentWidth = Number(shell?.style.width.replace('%', '')) || 100
+      const containerWidth = wrapper?.clientWidth ?? 1
+      resizeDragRef.current = {
+        path,
+        pathKey: getPathKey(path),
+        direction,
+        startX: event.clientX,
+        startWidth: currentWidth,
+        containerWidth,
+        changed: false,
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    const onMouseMove = (event: MouseEvent) => {
+      const drag = resizeDragRef.current
+      if (!drag) return
+      const directionSign = drag.direction === 'right' ? 1 : -1
+      const deltaPercent = ((event.clientX - drag.startX) / drag.containerWidth) * 100 * directionSign
+      const nextWidth = Math.max(25, Math.min(100, drag.startWidth + deltaPercent))
+      drag.changed = drag.changed || Math.abs(nextWidth - drag.startWidth) >= 0.5
+      handleResizeImage(drag.path, nextWidth)
+    }
+
+    const onMouseUp = () => {
+      const drag = resizeDragRef.current
+      if (!drag) return
+      if (drag.changed) {
+        Transforms.setNodes(
+          editor,
+          {
+            reviewEdited: true,
+            reviewFrameColor: currentUserColor,
+            reviewChangeType: 'resized',
+            reviewAuthorId: currentUserId,
+            reviewAuthorColor: currentUserColor,
+            reviewChangeAt: Date.now(),
+          } as Partial<ImageElement>,
+          { at: drag.path }
+        )
+      }
+      resizeDragRef.current = null
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [currentUserColor, currentUserId, editor, handleResizeImage])
 
   const handleImageDelete = useCallback(() => {
     if (selectedImagePathKey == null) return false
@@ -852,6 +930,10 @@ export function SlateEditorBody() {
               reviewDeleted: true,
               reviewEdited: true,
               reviewFrameColor: currentUserColor,
+              reviewChangeType: 'deleted',
+              reviewAuthorId: currentUserId,
+              reviewAuthorColor: currentUserColor,
+              reviewChangeAt: Date.now(),
             } as Partial<ImageElement>,
             { at: path }
           )
@@ -877,10 +959,10 @@ export function SlateEditorBody() {
         selectedImagePathKey={selectedImagePathKey}
         reviewMode={reviewMode}
         onSelectImage={handleSelectImage}
-        onResizeImage={handleResizeImage}
+        onResizeStart={handleResizeStart}
       />
     ),
-    [handleResizeImage, handleSelectImage, reviewMode, selectedImagePathKey]
+    [handleResizeStart, handleSelectImage, reviewMode, selectedImagePathKey]
   )
   const sidebarEditingSuggestionId =
     fromSidebar && openedSuggestionId != null ? openedSuggestionId : null
