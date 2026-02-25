@@ -948,7 +948,7 @@ export function SlateEditorBody() {
     }
     if (imagePath == null) setSelectedImagePathKey(null)
     return false
-  }, [currentUserColor, editor, reviewMode, selectedImagePathKey])
+  }, [currentUserColor, currentUserId, editor, reviewMode, selectedImagePathKey])
 
   const showToolbar =
     overlayEditingId != null &&

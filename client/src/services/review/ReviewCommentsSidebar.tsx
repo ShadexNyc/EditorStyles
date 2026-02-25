@@ -1,4 +1,4 @@
-import { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSlate } from 'slate-react'
 import { Editor, Element as SlateElement } from 'slate'
@@ -108,30 +108,36 @@ export function ReviewCommentsSidebar() {
 
   const suggestions = getSuggestionsList(editor)
 
-  const imageReviewMessages = useMemo(() => {
-    const messages: Array<{ key: string; authorName: string; authorColor: string; action: string; comment: string; changedAt: number }> = []
-    for (const [node, path] of Editor.nodes(editor, {
-      at: [],
-      match: (n) => SlateElement.isElement(n) && n.type === 'image',
-    })) {
-      const imageNode = node as ImageElement
-      if (imageNode.reviewChangeType == null) continue
-      const authorName = imageNode.reviewAuthorId
-        ? users.find((u) => u.id === imageNode.reviewAuthorId)?.name ?? 'Автор'
-        : 'Автор'
-      const action = imageNode.reviewChangeType === 'deleted' ? 'Удалено изображение' : 'Изменён размер изображения'
-      messages.push({
-        key: `${path.join('.')}-${imageNode.reviewChangeAt ?? 0}`,
-        authorName,
-        authorColor: imageNode.reviewAuthorColor ?? '#64748b',
-        action,
-        comment: imageNode.reviewComment ?? 'Комментарий: действие с изображением выполнено',
-        changedAt: imageNode.reviewChangeAt ?? 0,
-      })
-    }
-    messages.sort((a, b) => b.changedAt - a.changedAt)
-    return messages
-  }, [editor, users])
+  const imageReviewMessages: Array<{
+    key: string
+    authorName: string
+    authorColor: string
+    action: string
+    comment: string
+    changedAt: number
+  }> = []
+
+  for (const [node, path] of Editor.nodes(editor, {
+    at: [],
+    match: (n) => SlateElement.isElement(n) && n.type === 'image',
+  })) {
+    const imageNode = node as ImageElement
+    if (imageNode.reviewChangeType == null) continue
+    const authorName = imageNode.reviewAuthorId
+      ? users.find((u) => u.id === imageNode.reviewAuthorId)?.name ?? 'Автор'
+      : 'Автор'
+    const action = imageNode.reviewChangeType === 'deleted' ? 'Удалено изображение' : 'Изменён размер изображения'
+    imageReviewMessages.push({
+      key: `${path.join('.')}-${imageNode.reviewChangeAt ?? 0}`,
+      authorName,
+      authorColor: imageNode.reviewAuthorColor ?? '#64748b',
+      action,
+      comment: imageNode.reviewComment ?? 'Комментарий: действие с изображением выполнено',
+      changedAt: imageNode.reviewChangeAt ?? 0,
+    })
+  }
+
+  imageReviewMessages.sort((a, b) => b.changedAt - a.changedAt)
 
   const openBubble = useCallback(
     (id: string) => {
