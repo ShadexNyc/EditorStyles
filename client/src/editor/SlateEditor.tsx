@@ -1,14 +1,153 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Editor, Descendant, Element as SlateElement, Node, Text as SlateText } from 'slate'
-import { Editable, useSlate } from 'slate-react'
+import { Editor, Descendant, Element as SlateElement, Node, Path, Text as SlateText, Transforms } from 'slate'
+import { Editable, ReactEditor, useSlate, useSlateStatic } from 'slate-react'
 import type { RenderElementProps, RenderLeafProps } from 'slate-react'
-import type { FormattedText } from '../types/slate'
+import type { FormattedText, ImageElement } from '../types/slate'
 import { useReview } from '../services/review/ReviewContext'
 import { ReviewCommentsContext } from '../services/review/ReviewCommentsContext'
+import { DocumentContext } from '../storage/DocumentContext'
 import { acceptSuggestion, rejectSuggestion } from './commitReview'
 
-function Element({ attributes, children, element }: RenderElementProps) {
+function getPathKey(path: Path): string {
+  return path.join('.')
+}
+
+function ImageDeletionOverlay() {
+  return (
+    <div className="editor-image-deletion-overlay" aria-hidden>
+      <svg width="62" height="62" viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 16L46 46" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+        <path d="M46 16L16 46" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+        <path d="M16 16L46 46" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+        <path d="M46 16L16 46" stroke="#DC2626" strokeWidth="6" strokeLinecap="round" />
+      </svg>
+    </div>
+  )
+}
+
+function Element({
+  attributes,
+  children,
+  element,
+  selectedImagePathKey,
+  reviewMode,
+  onSelectImage,
+  onResizeStart,
+  acceptHoverImagePathKey,
+  onAcceptImageAction,
+  onRejectImageAction,
+  onAcceptImageHoverChange,
+}: RenderElementProps & {
+  selectedImagePathKey: string | null
+  reviewMode: boolean
+  onSelectImage: (path: Path) => void
+  onResizeStart: (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => void
+  acceptHoverImagePathKey: string | null
+  onAcceptImageAction: (pathKey: string) => void
+  onRejectImageAction: (pathKey: string) => void
+  onAcceptImageHoverChange: (pathKey: string | null) => void
+}) {
   const style: React.CSSProperties = {}
+
+  if (element.type === 'image') {
+    const editor = useSlateStatic() as ReactEditor
+    const imageElement = element as ImageElement
+    const imagePath = ReactEditor.findPath(editor, element)
+    const imagePathKey = getPathKey(imagePath)
+    const isSelectedImage = selectedImagePathKey === imagePathKey
+    const widthPercent = Math.max(25, Math.min(100, imageElement.width ?? 100))
+    const frameColor = imageElement.reviewFrameColor ?? '#64748b'
+    const isAcceptHoverImage = acceptHoverImagePathKey === imagePathKey
+
+    return (
+      <div {...attributes} className="editor-image-block">
+        <div contentEditable={false}>
+          <div
+            className={[
+              'editor-image-shell',
+              imageElement.reviewEdited ? 'is-reviewed-edited' : '',
+              imageElement.reviewDeleted ? 'is-review-deleted' : '',
+              reviewMode ? 'is-review-mode' : '',
+              isAcceptHoverImage ? 'is-accept-hover' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ width: `${widthPercent}%`, ['--image-review-frame' as string]: frameColor }}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onSelectImage(imagePath)
+              ReactEditor.focus(editor)
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Выбрать изображение"
+          >
+            <img src={imageElement.url} alt={imageElement.alt} className="editor-image" draggable={false} />
+            {imageElement.reviewDeleted && <ImageDeletionOverlay />}
+            {reviewMode && isSelectedImage && !imageElement.reviewDeleted && (
+              <>
+                <button
+                  type="button"
+                  className="editor-image-handle is-top-left"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'left')}
+                  aria-label="Изменить размер изображения"
+                />
+                <button
+                  type="button"
+                  className="editor-image-handle is-top-right"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'right')}
+                  aria-label="Изменить размер изображения"
+                />
+                <button
+                  type="button"
+                  className="editor-image-handle is-bottom-left"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'left')}
+                  aria-label="Изменить размер изображения"
+                />
+                <button
+                  type="button"
+                  className="editor-image-handle is-bottom-right"
+                  onMouseDown={(event) => onResizeStart(event, imagePath, 'right')}
+                  aria-label="Изменить размер изображения"
+                />
+              </>
+            )}
+          </div>
+          {reviewMode && isSelectedImage && imageElement.reviewChangeType != null && (
+            <ReviewActionToolbar
+              className="editor-image-review-toolbar"
+              acceptLabel="Принять правку"
+              rejectLabel="Отменить"
+              onAccept={() => onAcceptImageAction(imagePathKey)}
+              onReject={() => onRejectImageAction(imagePathKey)}
+              onAcceptMouseEnter={() => onAcceptImageHoverChange(imagePathKey)}
+              onAcceptMouseLeave={() => onAcceptImageHoverChange(null)}
+            />
+          )}
+        </div>
+        {children}
+      </div>
+    )
+  }
+
+  if (element.type === 'table') {
+    return (
+      <div {...attributes} className="editor-table-wrap">
+        <table className="editor-table">
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    )
+  }
+
+  if (element.type === 'table-row') {
+    return <tr {...attributes}>{children}</tr>
+  }
+
+  if (element.type === 'table-cell') {
+    return <td {...attributes}>{children}</td>
+  }
+
   if (element.type === 'paragraph') {
     style.marginBottom = '0.75em'
   }
@@ -229,6 +368,94 @@ function useEditingSuggestionId(): string | null {
   }, [editor, editor.selection])
 }
 
+
+function ReviewActionToolbar({
+  onAccept,
+  onReject,
+  onAcceptMouseEnter,
+  onAcceptMouseLeave,
+  acceptLabel,
+  rejectLabel,
+  className,
+  style,
+}: {
+  onAccept: () => void
+  onReject: () => void
+  onAcceptMouseEnter?: () => void
+  onAcceptMouseLeave?: () => void
+  acceptLabel: string
+  rejectLabel: string
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
+
+  return (
+    <div className={['review-toolbar', className].filter(Boolean).join(' ')} role="toolbar" style={style}>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label={acceptLabel}
+          onMouseEnter={() => {
+            setTooltipVisible('accept')
+            onAcceptMouseEnter?.()
+          }}
+          onMouseLeave={() => {
+            setTooltipVisible(null)
+            onAcceptMouseLeave?.()
+          }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onAccept}
+          className="review-toolbar-btn"
+          style={{
+            padding: 6,
+            border: 'none',
+            borderRadius: 6,
+            background: 'transparent',
+            cursor: 'pointer',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </button>
+        {tooltipVisible === 'accept' && <span className="review-toolbar-tooltip" role="tooltip">{acceptLabel}</span>}
+      </div>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label={rejectLabel}
+          onMouseEnter={() => setTooltipVisible('reject')}
+          onMouseLeave={() => setTooltipVisible(null)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onReject}
+          className="review-toolbar-btn"
+          style={{
+            padding: 6,
+            border: 'none',
+            borderRadius: 6,
+            background: 'transparent',
+            cursor: 'pointer',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+        {tooltipVisible === 'reject' && <span className="review-toolbar-tooltip" role="tooltip">{rejectLabel}</span>}
+      </div>
+    </div>
+  )
+}
+
 type LineRect = { top: number; left: number; width: number; height: number; color: string; rightBorder?: boolean }
 type TopBottomSegment = LineRect & { edge: 'top' | 'bottom' }
 
@@ -256,7 +483,6 @@ function ReviewEditingOverlay({
   const [lineRects, setLineRects] = useState<LineRect[]>([])
   const [style1TopBottom, setStyle1TopBottom] = useState<TopBottomSegment[] | null>(null)
   const [toolbarRect, setToolbarRect] = useState<ToolbarRect | null>(null)
-  const [tooltipVisible, setTooltipVisible] = useState<'accept' | 'reject' | null>(null)
   const useVerticalLines = reviewStyleId === 'style-2'
 
   const renderTopBottomSegments = (segments: TopBottomSegment[]) =>
@@ -540,99 +766,42 @@ function ReviewEditingOverlay({
         {style1TopBottom != null &&
           renderTopBottomSegments(style1TopBottom)}
         <div
-          className="review-toolbar"
-          role="toolbar"
           onMouseEnter={() => onToolbarHoverChange?.(true)}
-          onMouseLeave={() => onToolbarHoverChange?.(false)}
+          onMouseLeave={() => {
+            onToolbarHoverChange?.(false)
+            onAcceptHoverChange(false)
+          }}
           style={{
             position: 'absolute',
             top: toolbarRect.top,
             left: toolbarRect.left,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '4px 6px',
-            background: 'var(--color-bg-canvas, #fff)',
-            border: '1px solid var(--color-border-canvas, #d0d0d0)',
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             zIndex: 10,
           }}
         >
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              aria-label="Принять правку"
-              onMouseEnter={() => {
-                onAcceptHoverChange(true)
-                setTooltipVisible('accept')
-              }}
-              onMouseLeave={() => {
-                onAcceptHoverChange(false)
-                setTooltipVisible(null)
-              }}
-              onClick={() => {
-                onAccept()
-                setToolbarRect(null)
-                setTooltipVisible(null)
-              }}
-              className="review-toolbar-btn"
-              style={{
-                padding: 6,
-                border: 'none',
-                borderRadius: 6,
-                background: 'transparent',
-                cursor: 'pointer',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </button>
-            {tooltipVisible === 'accept' && (
-              <span className="review-toolbar-tooltip" role="tooltip">
-                Принять правку
-              </span>
-            )}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              aria-label="Отменить"
-              onMouseEnter={() => setTooltipVisible('reject')}
-              onMouseLeave={() => setTooltipVisible(null)}
-              onClick={() => {
-                onReject()
-                setToolbarRect(null)
-                setTooltipVisible(null)
-              }}
-              className="review-toolbar-btn"
-              style={{
-                padding: 6,
-                border: 'none',
-                borderRadius: 6,
-                background: 'transparent',
-                cursor: 'pointer',
-                color: '#333',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-            {tooltipVisible === 'reject' && (
-              <span className="review-toolbar-tooltip" role="tooltip">
-                Отменить
-              </span>
-            )}
-          </div>
+          <ReviewActionToolbar
+            acceptLabel="Принять правку"
+            rejectLabel="Отменить"
+            onAccept={() => {
+              onAccept()
+              setToolbarRect(null)
+            }}
+            onReject={() => {
+              onReject()
+              setToolbarRect(null)
+            }}
+            onAcceptMouseEnter={() => onAcceptHoverChange(true)}
+            onAcceptMouseLeave={() => onAcceptHoverChange(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 6px',
+              background: 'var(--color-bg-canvas, #fff)',
+              border: '1px solid var(--color-border-canvas, #d0d0d0)',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            }}
+          />
         </div>
       </>
     )
@@ -649,12 +818,29 @@ export function SlateEditorBody() {
   const editor = useSlate()
   const editingSuggestionId = useEditingSuggestionId()
   const { currentReviewStyleId, reviewMode } = useReview()
-  const { fromSidebar, setFromSidebar, openedSuggestionId, acceptHoverSuggestionId } = useContext(
-    ReviewCommentsContext
-  )
+  const { users, currentUserId } = useContext(DocumentContext)
+  const {
+    fromSidebar,
+    setFromSidebar,
+    openedSuggestionId,
+    acceptHoverSuggestionId,
+    acceptHoverImagePathKey,
+    setAcceptHoverImagePathKey,
+  } = useContext(ReviewCommentsContext)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [acceptHover, setAcceptHover] = useState(false)
   const [isToolbarHovered, setIsToolbarHovered] = useState(false)
+  const [selectedImagePathKey, setSelectedImagePathKey] = useState<string | null>(null)
+
+  const resizeDragRef = useRef<{
+    path: Path
+    pathKey: string
+    direction: 'left' | 'right'
+    startX: number
+    startWidth: number
+    containerWidth: number
+    changed: boolean
+  } | null>(null)
 
   const exitedSuggestionIdsRef = useRef<Set<string>>(new Set())
   const lastStickySuggestionIdRef = useRef<string | null>(null)
@@ -706,11 +892,205 @@ export function SlateEditorBody() {
     if (overlayEditingId === null) setIsToolbarHovered(false)
   }, [overlayEditingId])
 
+  const currentUserColor = users.find((user) => user.id === currentUserId)?.color ?? '#64748b'
+
+  const handleSelectImage = useCallback((path: Path) => {
+    setSelectedImagePathKey(getPathKey(path))
+    Transforms.select(editor, path)
+  }, [editor])
+
+  const handleResizeImage = useCallback((path: Path, widthPercent: number) => {
+    const clampedWidth = Math.max(25, Math.min(100, widthPercent))
+    Transforms.setNodes(
+      editor,
+      {
+        width: clampedWidth,
+      } as Partial<ImageElement>,
+      { at: path }
+    )
+  }, [editor])
+
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent, path: Path, direction: 'left' | 'right') => {
+      event.preventDefault()
+      event.stopPropagation()
+      const shell = (event.currentTarget as HTMLElement).closest('.editor-image-shell') as HTMLElement | null
+      const wrapper = (event.currentTarget as HTMLElement).closest('.slate-editor-content') as HTMLElement | null
+      const currentWidth = Number(shell?.style.width.replace('%', '')) || 100
+      const containerWidth = wrapper?.clientWidth ?? 1
+      resizeDragRef.current = {
+        path,
+        pathKey: getPathKey(path),
+        direction,
+        startX: event.clientX,
+        startWidth: currentWidth,
+        containerWidth,
+        changed: false,
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    const onMouseMove = (event: MouseEvent) => {
+      const drag = resizeDragRef.current
+      if (!drag) return
+      const directionSign = drag.direction === 'right' ? 1 : -1
+      const deltaPercent = ((event.clientX - drag.startX) / drag.containerWidth) * 100 * directionSign
+      const nextWidth = Math.max(25, Math.min(100, drag.startWidth + deltaPercent))
+      drag.changed = drag.changed || Math.abs(nextWidth - drag.startWidth) >= 0.5
+      handleResizeImage(drag.path, nextWidth)
+    }
+
+    const onMouseUp = () => {
+      const drag = resizeDragRef.current
+      if (!drag) return
+      if (drag.changed) {
+        Transforms.setNodes(
+          editor,
+          {
+            reviewEdited: true,
+            reviewFrameColor: currentUserColor,
+            reviewChangeType: 'resized',
+            reviewAuthorId: currentUserId,
+            reviewAuthorColor: currentUserColor,
+            reviewChangeAt: Date.now(),
+            reviewComment: '',
+            reviewPreviousWidth: drag.startWidth,
+          } as Partial<ImageElement>,
+          { at: drag.path }
+        )
+      }
+      resizeDragRef.current = null
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [currentUserColor, currentUserId, editor, handleResizeImage])
+
+  const handleImageDelete = useCallback(() => {
+    if (selectedImagePathKey == null) return false
+    let imagePath: Path | null = null
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) === selectedImagePathKey) {
+        imagePath = path
+        const imageNode = node as ImageElement
+        if (reviewMode && !imageNode.reviewDeleted) {
+          Transforms.setNodes(
+            editor,
+            {
+              reviewDeleted: true,
+              reviewEdited: true,
+              reviewFrameColor: currentUserColor,
+              reviewChangeType: 'deleted',
+              reviewAuthorId: currentUserId,
+              reviewAuthorColor: currentUserColor,
+              reviewChangeAt: Date.now(),
+              reviewComment: '',
+              reviewPreviousWidth: imageNode.width ?? 100,
+            } as Partial<ImageElement>,
+            { at: path }
+          )
+        } else {
+          Transforms.removeNodes(editor, { at: path })
+          setSelectedImagePathKey(null)
+        }
+        return true
+      }
+    }
+    if (imagePath == null) setSelectedImagePathKey(null)
+    return false
+  }, [currentUserColor, currentUserId, editor, reviewMode, selectedImagePathKey])
+
+  const clearImageReviewMetadata = useCallback((path: Path) => {
+    Transforms.unsetNodes(
+      editor,
+      [
+        'reviewEdited',
+        'reviewFrameColor',
+        'reviewDeleted',
+        'reviewChangeType',
+        'reviewAuthorId',
+        'reviewAuthorColor',
+        'reviewChangeAt',
+        'reviewComment',
+        'reviewPreviousWidth',
+      ],
+      { at: path }
+    )
+  }, [editor])
+
+  const handleAcceptImageAction = useCallback((pathKey: string) => {
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) !== pathKey) continue
+      const imageNode = node as ImageElement
+      if (imageNode.reviewDeleted) {
+        Transforms.removeNodes(editor, { at: path })
+      } else {
+        clearImageReviewMetadata(path)
+      }
+      break
+    }
+    setAcceptHoverImagePathKey(null)
+    setSelectedImagePathKey(null)
+  }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])
+
+  const handleRejectImageAction = useCallback((pathKey: string) => {
+    for (const [node, path] of Editor.nodes(editor, {
+      at: [],
+      match: (n) => SlateElement.isElement(n) && n.type === 'image',
+    })) {
+      if (getPathKey(path) !== pathKey) continue
+      const imageNode = node as ImageElement
+      if (imageNode.reviewChangeType === 'resized' && imageNode.reviewPreviousWidth != null) {
+        Transforms.setNodes(editor, { width: imageNode.reviewPreviousWidth } as Partial<ImageElement>, { at: path })
+      }
+      clearImageReviewMetadata(path)
+      break
+    }
+    setAcceptHoverImagePathKey(null)
+    setSelectedImagePathKey(null)
+  }, [clearImageReviewMetadata, editor, setAcceptHoverImagePathKey])
+
   const showToolbar =
     overlayEditingId != null &&
     exitedSuggestionIdsRef.current.has(overlayEditingId) &&
     !fromSidebar
-  const renderElement = useCallback((props: RenderElementProps) => <Element {...props} />, [])
+  const renderElement = useCallback(
+    (props: RenderElementProps) => (
+      <Element
+        {...props}
+        selectedImagePathKey={selectedImagePathKey}
+        reviewMode={reviewMode}
+        onSelectImage={handleSelectImage}
+        onResizeStart={handleResizeStart}
+        acceptHoverImagePathKey={acceptHoverImagePathKey}
+        onAcceptImageAction={handleAcceptImageAction}
+        onRejectImageAction={handleRejectImageAction}
+        onAcceptImageHoverChange={setAcceptHoverImagePathKey}
+      />
+    ),
+    [
+      acceptHoverImagePathKey,
+      handleAcceptImageAction,
+      handleRejectImageAction,
+      handleResizeStart,
+      handleSelectImage,
+      reviewMode,
+      selectedImagePathKey,
+      setAcceptHoverImagePathKey,
+    ]
+  )
   const sidebarEditingSuggestionId =
     fromSidebar && openedSuggestionId != null ? openedSuggestionId : null
   const renderLeaf = useCallback(
@@ -766,13 +1146,22 @@ export function SlateEditorBody() {
         ref={editableWrapRef}
         className="slate-editor-content"
         style={{ minHeight: '100%' }}
-        onMouseDown={() => setFromSidebar(false)}
+        onMouseDown={(event) => {
+          setFromSidebar(false)
+          const target = event.target as HTMLElement
+          if (target.closest('.editor-image-shell') == null) setSelectedImagePathKey(null)
+        }}
       >
         <Editable
           renderElement={renderElement}
           renderLeaf={renderLeaf}
           placeholder="Введите текст..."
           spellCheck
+          onKeyDown={(event) => {
+            if ((event.key === 'Backspace' || event.key === 'Delete') && handleImageDelete()) {
+              event.preventDefault()
+            }
+          }}
           style={{
             fontFamily: 'var(--font-family)',
             fontSize: 'var(--font-size-default)',

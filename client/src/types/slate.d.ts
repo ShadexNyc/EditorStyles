@@ -12,7 +12,45 @@ export interface HeadingElement extends BaseElement {
   children: Descendant[]
 }
 
-export type BlockElement = ParagraphElement | HeadingElement
+export interface ImageElement extends BaseElement {
+  type: 'image'
+  url: string
+  alt: string
+  width?: number
+  reviewEdited?: boolean
+  reviewFrameColor?: string
+  reviewDeleted?: boolean
+  reviewChangeType?: 'resized' | 'deleted'
+  reviewAuthorId?: string
+  reviewAuthorColor?: string
+  reviewChangeAt?: number
+  reviewComment?: string
+  reviewPreviousWidth?: number
+  children: Descendant[]
+}
+
+export interface TableCellElement extends BaseElement {
+  type: 'table-cell'
+  children: Descendant[]
+}
+
+export interface TableRowElement extends BaseElement {
+  type: 'table-row'
+  children: TableCellElement[]
+}
+
+export interface TableElement extends BaseElement {
+  type: 'table'
+  children: TableRowElement[]
+}
+
+export type BlockElement =
+  | ParagraphElement
+  | HeadingElement
+  | ImageElement
+  | TableElement
+  | TableRowElement
+  | TableCellElement
 
 export interface FormattedText extends BaseText {
   text: string
